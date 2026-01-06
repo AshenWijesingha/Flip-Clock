@@ -1,7 +1,11 @@
-const CACHE_NAME = 'flip-clock-v1';
+const CACHE_NAME = 'flip-clock-v2';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
+    '/clock.html',
+    '/timer.html',
+    '/stopwatch.html',
+    '/world-clock.html',
     '/manifest.json',
     '/icons/icon-192.png',
     '/icons/icon-512.png',

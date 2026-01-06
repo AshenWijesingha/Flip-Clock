@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Flip Clock">
+    <meta name="description" content="A beautiful retro flip clock wallpaper">
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    
+    <title>Flip Clock</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@300&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'bebas': ['Bebas Neue', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        'clock-dark': '#0a0a0f',
+                        'clock-card': '#1a1a24',
+                        'clock-accent': '#f0c674',
+                        'clock-text': '#e8e8e8',
+                        'clock-shadow': '#050508',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --flip-duration: 0.6s;
+            --card-depth: 8px;
+            --ambient-glow: rgba(240, 198, 116, 0.03);
+        }
+
+        body {
+            font-family: 'Bebas Neue', sans-serif;
+            background: linear-gradient(145deg, #0a0a0f 0%, #12121a 50%, #0a0a0f 100%);
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* Noise texture overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Ambient light effect */
+        .ambient-light {
+            position: fixed;
+            width: 150%;
+            height: 150%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(ellipse at center, var(--ambient-glow) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .clock-container {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+            animation: fadeIn 1.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .flip-clock {
+            display: flex;
+            align-items: center;
+            gap: clamp(0.5rem, 2vw, 1.5rem);
+        }
+
+        .flip-group {
+            display: flex;
+            gap: clamp(0.25rem, 0.8vw, 0.5rem);
+        }
+
+        .flip-card {
+            position: relative;
+            width: clamp(60px, 15vw, 140px);
+            height: clamp(80px, 20vw, 180px);
+            perspective: 1000px;
+            border-radius: 12px;
+            box-shadow: 
+                0 var(--card-depth) 0 0 #0f0f14,
+                0 calc(var(--card-depth) + 4px) 20px rgba(0, 0, 0, 0.5),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 50%;
+            overflow: hidden;
+            backface-visibility: hidden;
+            background: linear-gradient(180deg, #1f1f2a 0%, #1a1a24 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-face-top {
+            top: 0;
+            border-radius: 12px 12px 0 0;
+            align-items: flex-end;
+            border-bottom: 2px solid #0a0a0f;
+            background: linear-gradient(180deg, #252532 0%, #1f1f2a 100%);
+        }
+
+        .card-face-top::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, rgba(0,0,0,0.3) 20%, rgba(0,0,0,0.3) 80%, transparent);
+        }
+
+        .card-face-bottom {
+            bottom: 0;
+            border-radius: 0 0 12px 12px;
+            align-items: flex-start;
+            background: linear-gradient(180deg, #1a1a24 0%, #16161e 100%);
+        }
+
+        .card-face-bottom::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .card-face span {
+            font-size: clamp(4rem, 12vw, 10rem);
+            color: #e8e8e8;
+            line-height: 1;
+            transform: translateY(0);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-face-top span {
+            transform: translateY(50%);
+        }
+
+        .card-face-bottom span {
+            transform: translateY(-50%);
+        }
+
+        /* Flip animation elements */
+        .flip-card .flip-top,
+        .flip-card .flip-bottom {
+            position: absolute;
+            width: 100%;
+            height: 50%;
+            overflow: hidden;
+            backface-visibility: hidden;
+        }
+
+        .flip-card .flip-top {
+            top: 0;
+            transform-origin: bottom;
+            border-radius: 12px 12px 0 0;
+            background: linear-gradient(180deg, #252532 0%, #1f1f2a 100%);
+            z-index: 10;
+        }
+
+        .flip-card .flip-bottom {
+            bottom: 0;
+            transform-origin: top;
+            transform: rotateX(90deg);
+            border-radius: 0 0 12px 12px;
+            background: linear-gradient(180deg, #1a1a24 0%, #16161e 100%);
+            z-index: 10;
+        }
+
+        .flip-card .flip-top span,
+        .flip-card .flip-bottom span {
+            position: absolute;
+            width: 100%;
+            height: 200%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(4rem, 12vw, 10rem);
+            color: #e8e8e8;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .flip-card .flip-top span {
+            top: 0;
+        }
+
+        .flip-card .flip-bottom span {
+            bottom: 0;
+        }
+
+        .flip-card.flipping .flip-top {
+            animation: flipTop var(--flip-duration) ease-in forwards;
+        }
+
+        .flip-card.flipping .flip-bottom {
+            animation: flipBottom var(--flip-duration) ease-out forwards;
+            animation-delay: calc(var(--flip-duration) / 2);
+        }
+
+        @keyframes flipTop {
+            0% {
+                transform: rotateX(0deg);
+            }
+            100% {
+                transform: rotateX(-90deg);
+            }
+        }
+
+        @keyframes flipBottom {
+            0% {
+                transform: rotateX(90deg);
+            }
+            100% {
+                transform: rotateX(0deg);
+            }
+        }
+
+        /* Separator */
+        .separator {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.8rem, 2vw, 1.5rem);
+            padding: 0 clamp(0.25rem, 1vw, 0.5rem);
+        }
+
+        .separator-dot {
+            width: clamp(10px, 2vw, 16px);
+            height: clamp(10px, 2vw, 16px);
+            background: linear-gradient(145deg, #f0c674 0%, #d4a54a 100%);
+            border-radius: 50%;
+            box-shadow: 
+                0 0 20px rgba(240, 198, 116, 0.3),
+                0 0 40px rgba(240, 198, 116, 0.1),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .separator-dot:nth-child(2) {
+            animation-delay: 0.5s;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.6;
+                transform: scale(0.9);
+            }
+        }
+
+        /* Date display */
+        .date-display {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: clamp(0.75rem, 2vw, 1.1rem);
+            font-weight: 300;
+            color: rgba(240, 198, 116, 0.7);
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            padding: 0.75rem 1.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(240, 198, 116, 0.1);
+            border-radius: 100px;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Back button */
+        .back-btn {
+            position: fixed;
+            top: 1.5rem;
+            left: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: rgba(240, 198, 116, 0.7);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(240, 198, 116, 0.1);
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .back-btn:hover {
+            background: rgba(240, 198, 116, 0.1);
+            color: #f0c674;
+        }
+
+        /* Install prompt */
+        .install-prompt {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(26, 26, 36, 0.95);
+            border: 1px solid rgba(240, 198, 116, 0.2);
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+        }
+
+        .install-prompt.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .install-prompt p {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: #e8e8e8;
+        }
+
+        .install-btn {
+            background: linear-gradient(145deg, #f0c674 0%, #d4a54a 100%);
+            color: #0a0a0f;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1rem;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .install-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(240, 198, 116, 0.3);
+        }
+
+        .close-prompt {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            padding: 0.25rem;
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        .close-prompt:hover {
+            color: #e8e8e8;
+        }
+
+        /* Fullscreen hint */
+        .fullscreen-hint {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.2);
+            letter-spacing: 0.1em;
+            z-index: 50;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .fullscreen-hint:hover {
+            color: rgba(240, 198, 116, 0.5);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .flip-clock {
+                gap: 0.5rem;
+            }
+            
+            .flip-group {
+                gap: 0.2rem;
+            }
+
+            .flip-card {
+                --card-depth: 5px;
+                border-radius: 8px;
+            }
+
+            .card-face-top,
+            .flip-card .flip-top {
+                border-radius: 8px 8px 0 0;
+            }
+
+            .card-face-bottom,
+            .flip-card .flip-bottom {
+                border-radius: 0 0 8px 8px;
+            }
+
+            .date-display {
+                letter-spacing: 0.15em;
+            }
+
+            .back-btn {
+                top: 1rem;
+                left: 1rem;
+                font-size: 0.75rem;
+                padding: 0.4rem 0.8rem;
+            }
+        }
+
+        /* Landscape phone optimization */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .clock-container {
+                gap: 1rem;
+            }
+
+            .flip-card {
+                width: clamp(50px, 10vw, 80px);
+                height: clamp(65px, 14vw, 100px);
+            }
+
+            .card-face span,
+            .flip-card .flip-top span,
+            .flip-card .flip-bottom span {
+                font-size: clamp(3rem, 8vw, 5rem);
+            }
+
+            .date-display {
+                padding: 0.5rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ambient-light"></div>
+    
+    <a href="index.html" class="back-btn">← Home</a>
+    
+    <div class="clock-container">
+        <div class="flip-clock">
+            <!-- Hours -->
+            <div class="flip-group">
+                <div class="flip-card" id="hours-tens">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>0</span></div>
+                        <div class="card-face card-face-bottom"><span>0</span></div>
+                    </div>
+                </div>
+                <div class="flip-card" id="hours-ones">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>0</span></div>
+                        <div class="card-face card-face-bottom"><span>0</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Separator -->
+            <div class="separator">
+                <div class="separator-dot"></div>
+                <div class="separator-dot"></div>
+            </div>
+            
+            <!-- Minutes -->
+            <div class="flip-group">
+                <div class="flip-card" id="minutes-tens">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>0</span></div>
+                        <div class="card-face card-face-bottom"><span>0</span></div>
+                    </div>
+                </div>
+                <div class="flip-card" id="minutes-ones">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>0</span></div>
+                        <div class="card-face card-face-bottom"><span>0</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Separator -->
+            <div class="separator">
+                <div class="separator-dot"></div>
+                <div class="separator-dot"></div>
+            </div>
+            
+            <!-- Seconds -->
+            <div class="flip-group">
+                <div class="flip-card" id="seconds-tens">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>0</span></div>
+                        <div class="card-face card-face-bottom"><span>0</span></div>
+                    </div>
+                </div>
+                <div class="flip-card" id="seconds-ones">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>0</span></div>
+                        <div class="card-face card-face-bottom"><span>0</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="date-display" id="date-display"></div>
+    </div>
+    
+    <!-- Install prompt -->
+    <div class="install-prompt" id="install-prompt">
+        <p>Install as App</p>
+        <button class="install-btn" id="install-btn">Install</button>
+        <button class="close-prompt" id="close-prompt">×</button>
+    </div>
+    
+    <div class="fullscreen-hint" id="fullscreen-hint">Press F11 for fullscreen</div>
+
+    <script>
+        // Flip Clock Logic
+        class FlipClock {
+            constructor() {
+                this.cards = {
+                    hoursTens: document.getElementById('hours-tens'),
+                    hoursOnes: document.getElementById('hours-ones'),
+                    minutesTens: document.getElementById('minutes-tens'),
+                    minutesOnes: document.getElementById('minutes-ones'),
+                    secondsTens: document.getElementById('seconds-tens'),
+                    secondsOnes: document.getElementById('seconds-ones'),
+                };
+                this.dateDisplay = document.getElementById('date-display');
+                this.previousValues = {
+                    hoursTens: null,
+                    hoursOnes: null,
+                    minutesTens: null,
+                    minutesOnes: null,
+                    secondsTens: null,
+                    secondsOnes: null,
+                };
+                
+                this.init();
+            }
+
+            init() {
+                this.updateClock();
+                setInterval(() => this.updateClock(), 1000);
+            }
+
+            updateClock() {
+                const now = new Date();
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const seconds = String(now.getSeconds()).padStart(2, '0');
+
+                this.updateCard('hoursTens', hours[0]);
+                this.updateCard('hoursOnes', hours[1]);
+                this.updateCard('minutesTens', minutes[0]);
+                this.updateCard('minutesOnes', minutes[1]);
+                this.updateCard('secondsTens', seconds[0]);
+                this.updateCard('secondsOnes', seconds[1]);
+
+                this.updateDate(now);
+            }
+
+            updateCard(cardName, newValue) {
+                const card = this.cards[cardName];
+                const prevValue = this.previousValues[cardName];
+
+                if (prevValue === newValue) return;
+
+                if (prevValue !== null) {
+                    this.flipCard(card, prevValue, newValue);
+                } else {
+                    // Initial set without animation
+                    this.setCardValue(card, newValue);
+                }
+
+                this.previousValues[cardName] = newValue;
+            }
+
+            setCardValue(card, value) {
+                const topSpan = card.querySelector('.card-face-top span');
+                const bottomSpan = card.querySelector('.card-face-bottom span');
+                topSpan.textContent = value;
+                bottomSpan.textContent = value;
+            }
+
+            flipCard(card, oldValue, newValue) {
+                // Remove any existing flip elements
+                const existingFlipTop = card.querySelector('.flip-top');
+                const existingFlipBottom = card.querySelector('.flip-bottom');
+                if (existingFlipTop) existingFlipTop.remove();
+                if (existingFlipBottom) existingFlipBottom.remove();
+
+                // Create flip elements
+                const flipTop = document.createElement('div');
+                flipTop.className = 'flip-top';
+                flipTop.innerHTML = `<span>${oldValue}</span>`;
+
+                const flipBottom = document.createElement('div');
+                flipBottom.className = 'flip-bottom';
+                flipBottom.innerHTML = `<span>${newValue}</span>`;
+
+                // Update static cards
+                const topSpan = card.querySelector('.card-face-top span');
+                const bottomSpan = card.querySelector('.card-face-bottom span');
+                
+                // Top shows new value (revealed after flip)
+                topSpan.textContent = newValue;
+                // Bottom shows old value initially
+                bottomSpan.textContent = oldValue;
+
+                card.appendChild(flipTop);
+                card.appendChild(flipBottom);
+                card.classList.add('flipping');
+
+                // Update bottom to new value after animation
+                setTimeout(() => {
+                    bottomSpan.textContent = newValue;
+                }, 300);
+
+                // Cleanup
+                setTimeout(() => {
+                    card.classList.remove('flipping');
+                    flipTop.remove();
+                    flipBottom.remove();
+                }, 600);
+            }
+
+            updateDate(date) {
+                const options = { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                };
+                this.dateDisplay.textContent = date.toLocaleDateString('en-US', options);
+            }
+        }
+
+        // PWA Install Logic
+        let deferredPrompt;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Show install prompt after a delay
+            setTimeout(() => {
+                document.getElementById('install-prompt').classList.add('visible');
+            }, 3000);
+        });
+
+        document.getElementById('install-btn').addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            
+            if (outcome === 'accepted') {
+                document.getElementById('install-prompt').classList.remove('visible');
+            }
+            
+            deferredPrompt = null;
+        });
+
+        document.getElementById('close-prompt').addEventListener('click', () => {
+            document.getElementById('install-prompt').classList.remove('visible');
+        });
+
+        // Fullscreen toggle
+        document.getElementById('fullscreen-hint').addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log('Fullscreen not available');
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        // Hide fullscreen hint on mobile
+        if ('ontouchstart' in window) {
+            document.getElementById('fullscreen-hint').style.display = 'none';
+        }
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('SW registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('SW registration failed:', error);
+                    });
+            });
+        }
+
+        // Initialize clock
+        new FlipClock();
+
+        // Prevent screen from sleeping (if supported)
+        if ('wakeLock' in navigator) {
+            let wakeLock = null;
+            
+            const requestWakeLock = async () => {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                } catch (err) {
+                    console.log('Wake Lock not available');
+                }
+            };
+
+            requestWakeLock();
+            
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    requestWakeLock();
+                }
+            });
+        }
+    </script>
+</body>
+</html>

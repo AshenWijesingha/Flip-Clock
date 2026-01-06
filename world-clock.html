@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="World Clock">
+    <meta name="description" content="A beautiful retro world clock">
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    
+    <title>World Clock - Flip Clock</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@300&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'bebas': ['Bebas Neue', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        'clock-dark': '#0a0a0f',
+                        'clock-card': '#1a1a24',
+                        'clock-accent': '#f0c674',
+                        'clock-text': '#e8e8e8',
+                        'clock-shadow': '#050508',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --flip-duration: 0.6s;
+            --card-depth: 6px;
+            --ambient-glow: rgba(240, 198, 116, 0.03);
+        }
+
+        body {
+            font-family: 'Bebas Neue', sans-serif;
+            background: linear-gradient(145deg, #0a0a0f 0%, #12121a 50%, #0a0a0f 100%);
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Noise texture overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Ambient light effect */
+        .ambient-light {
+            position: fixed;
+            width: 150%;
+            height: 150%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(ellipse at center, var(--ambient-glow) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .main-container {
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+            padding: 5rem 1rem 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .page-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            animation: fadeIn 1.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Title display */
+        .title-display {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: clamp(0.75rem, 2vw, 1.1rem);
+            font-weight: 300;
+            color: rgba(240, 198, 116, 0.7);
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            padding: 0.75rem 1.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(240, 198, 116, 0.1);
+            border-radius: 100px;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Back button */
+        .back-btn {
+            position: fixed;
+            top: 1.5rem;
+            left: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: rgba(240, 198, 116, 0.7);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(240, 198, 116, 0.1);
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .back-btn:hover {
+            background: rgba(240, 198, 116, 0.1);
+            color: #f0c674;
+        }
+
+        /* Add clock button */
+        .add-clock-btn {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: rgba(240, 198, 116, 0.7);
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(240, 198, 116, 0.1);
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            z-index: 100;
+        }
+
+        .add-clock-btn:hover {
+            background: rgba(240, 198, 116, 0.1);
+            color: #f0c674;
+        }
+
+        /* Clocks container */
+        .clocks-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 2rem;
+            max-width: 1400px;
+            width: 100%;
+        }
+
+        /* World clock card */
+        .world-clock-card {
+            background: rgba(26, 26, 36, 0.5);
+            border: 1px solid rgba(240, 198, 116, 0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            backdrop-filter: blur(10px);
+            animation: fadeIn 0.5s ease-out;
+            position: relative;
+        }
+
+        .world-clock-card .remove-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(255, 100, 100, 0.1);
+            border: 1px solid rgba(255, 100, 100, 0.3);
+            color: rgba(255, 100, 100, 0.7);
+            font-size: 1rem;
+            line-height: 1;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .world-clock-card .remove-btn:hover {
+            background: rgba(255, 100, 100, 0.2);
+            color: #ff6464;
+        }
+
+        .city-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            color: rgba(240, 198, 116, 0.8);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+
+        .timezone-info {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .mini-flip-clock {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .mini-flip-group {
+            display: flex;
+            gap: 0.15rem;
+        }
+
+        .mini-flip-card {
+            position: relative;
+            width: 35px;
+            height: 45px;
+            perspective: 1000px;
+            border-radius: 6px;
+            box-shadow: 
+                0 4px 0 0 #0f0f14,
+                0 8px 15px rgba(0, 0, 0, 0.5),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+        }
+
+        .mini-flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .mini-card-face {
+            position: absolute;
+            width: 100%;
+            height: 50%;
+            overflow: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mini-card-face-top {
+            top: 0;
+            border-radius: 6px 6px 0 0;
+            align-items: flex-end;
+            border-bottom: 1px solid #0a0a0f;
+            background: linear-gradient(180deg, #252532 0%, #1f1f2a 100%);
+        }
+
+        .mini-card-face-bottom {
+            bottom: 0;
+            border-radius: 0 0 6px 6px;
+            align-items: flex-start;
+            background: linear-gradient(180deg, #1a1a24 0%, #16161e 100%);
+        }
+
+        .mini-card-face span {
+            font-size: 1.8rem;
+            color: #e8e8e8;
+            line-height: 1;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .mini-card-face-top span {
+            transform: translateY(50%);
+        }
+
+        .mini-card-face-bottom span {
+            transform: translateY(-50%);
+        }
+
+        /* Mini flip animation elements */
+        .mini-flip-card .flip-top,
+        .mini-flip-card .flip-bottom {
+            position: absolute;
+            width: 100%;
+            height: 50%;
+            overflow: hidden;
+            backface-visibility: hidden;
+        }
+
+        .mini-flip-card .flip-top {
+            top: 0;
+            transform-origin: bottom;
+            border-radius: 6px 6px 0 0;
+            background: linear-gradient(180deg, #252532 0%, #1f1f2a 100%);
+            z-index: 10;
+        }
+
+        .mini-flip-card .flip-bottom {
+            bottom: 0;
+            transform-origin: top;
+            transform: rotateX(90deg);
+            border-radius: 0 0 6px 6px;
+            background: linear-gradient(180deg, #1a1a24 0%, #16161e 100%);
+            z-index: 10;
+        }
+
+        .mini-flip-card .flip-top span,
+        .mini-flip-card .flip-bottom span {
+            position: absolute;
+            width: 100%;
+            height: 200%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            color: #e8e8e8;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .mini-flip-card .flip-top span {
+            top: 0;
+        }
+
+        .mini-flip-card .flip-bottom span {
+            bottom: 0;
+        }
+
+        .mini-flip-card.flipping .flip-top {
+            animation: flipTop var(--flip-duration) ease-in forwards;
+        }
+
+        .mini-flip-card.flipping .flip-bottom {
+            animation: flipBottom var(--flip-duration) ease-out forwards;
+            animation-delay: calc(var(--flip-duration) / 2);
+        }
+
+        @keyframes flipTop {
+            0% { transform: rotateX(0deg); }
+            100% { transform: rotateX(-90deg); }
+        }
+
+        @keyframes flipBottom {
+            0% { transform: rotateX(90deg); }
+            100% { transform: rotateX(0deg); }
+        }
+
+        /* Mini separator */
+        .mini-separator {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            padding: 0 0.2rem;
+        }
+
+        .mini-separator-dot {
+            width: 6px;
+            height: 6px;
+            background: linear-gradient(145deg, #f0c674 0%, #d4a54a 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(240, 198, 116, 0.3);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .mini-separator-dot:nth-child(2) {
+            animation-delay: 0.5s;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(0.9); }
+        }
+
+        .date-info {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            color: rgba(255, 255, 255, 0.4);
+            text-align: center;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: linear-gradient(145deg, #1a1a24 0%, #12121a 100%);
+            border: 1px solid rgba(240, 198, 116, 0.2);
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.visible .modal {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.5rem;
+            color: #f0c674;
+            letter-spacing: 0.1em;
+        }
+
+        .modal-close {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #e8e8e8;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(240, 198, 116, 0.2);
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: #e8e8e8;
+            outline: none;
+            margin-bottom: 1rem;
+        }
+
+        .search-input:focus {
+            border-color: rgba(240, 198, 116, 0.5);
+        }
+
+        .search-input::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .timezone-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .timezone-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .timezone-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 3px;
+        }
+
+        .timezone-list::-webkit-scrollbar-thumb {
+            background: rgba(240, 198, 116, 0.3);
+            border-radius: 3px;
+        }
+
+        .timezone-item {
+            padding: 0.75rem 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .timezone-item:hover {
+            background: rgba(240, 198, 116, 0.1);
+            border-color: rgba(240, 198, 116, 0.3);
+        }
+
+        .timezone-item-city {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: #e8e8e8;
+        }
+
+        .timezone-item-zone {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 0.25rem;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: rgba(255, 255, 255, 0.4);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .empty-state-text {
+            font-size: 0.9rem;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .main-container {
+                padding: 4rem 0.5rem 1rem;
+            }
+
+            .back-btn, .add-clock-btn {
+                top: 1rem;
+                font-size: 0.75rem;
+                padding: 0.4rem 0.8rem;
+            }
+
+            .back-btn {
+                left: 1rem;
+            }
+
+            .add-clock-btn {
+                right: 1rem;
+            }
+
+            .world-clock-card {
+                padding: 1rem;
+            }
+
+            .mini-flip-card {
+                width: 28px;
+                height: 36px;
+            }
+
+            .mini-card-face span,
+            .mini-flip-card .flip-top span,
+            .mini-flip-card .flip-bottom span {
+                font-size: 1.4rem;
+            }
+
+            .clocks-container {
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ambient-light"></div>
+    
+    <a href="index.html" class="back-btn">← Home</a>
+    <button class="add-clock-btn" id="add-clock-btn">+ Add Clock</button>
+    
+    <div class="main-container">
+        <div class="page-header">
+            <div class="title-display">World Clock</div>
+        </div>
+        
+        <div class="clocks-container" id="clocks-container">
+            <!-- World clocks will be rendered here -->
+        </div>
+        
+        <div class="empty-state" id="empty-state" style="display: none;">
+            <div class="empty-state-icon">🌍</div>
+            <p class="empty-state-text">No clocks added yet.<br>Click "+ Add Clock" to get started.</p>
+        </div>
+    </div>
+    
+    <!-- Add Clock Modal -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">Add Clock</span>
+                <button class="modal-close" id="modal-close">×</button>
+            </div>
+            <input type="text" class="search-input" id="search-input" placeholder="Search city or timezone...">
+            <div class="timezone-list" id="timezone-list">
+                <!-- Timezone items will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Timezone data
+        const timezones = [
+            { city: 'New York', timezone: 'America/New_York', label: 'EST/EDT' },
+            { city: 'Los Angeles', timezone: 'America/Los_Angeles', label: 'PST/PDT' },
+            { city: 'Chicago', timezone: 'America/Chicago', label: 'CST/CDT' },
+            { city: 'Denver', timezone: 'America/Denver', label: 'MST/MDT' },
+            { city: 'London', timezone: 'Europe/London', label: 'GMT/BST' },
+            { city: 'Paris', timezone: 'Europe/Paris', label: 'CET/CEST' },
+            { city: 'Berlin', timezone: 'Europe/Berlin', label: 'CET/CEST' },
+            { city: 'Moscow', timezone: 'Europe/Moscow', label: 'MSK' },
+            { city: 'Dubai', timezone: 'Asia/Dubai', label: 'GST' },
+            { city: 'Mumbai', timezone: 'Asia/Kolkata', label: 'IST' },
+            { city: 'Singapore', timezone: 'Asia/Singapore', label: 'SGT' },
+            { city: 'Hong Kong', timezone: 'Asia/Hong_Kong', label: 'HKT' },
+            { city: 'Shanghai', timezone: 'Asia/Shanghai', label: 'CST' },
+            { city: 'Tokyo', timezone: 'Asia/Tokyo', label: 'JST' },
+            { city: 'Seoul', timezone: 'Asia/Seoul', label: 'KST' },
+            { city: 'Sydney', timezone: 'Australia/Sydney', label: 'AEST/AEDT' },
+            { city: 'Melbourne', timezone: 'Australia/Melbourne', label: 'AEST/AEDT' },
+            { city: 'Auckland', timezone: 'Pacific/Auckland', label: 'NZST/NZDT' },
+            { city: 'São Paulo', timezone: 'America/Sao_Paulo', label: 'BRT' },
+            { city: 'Mexico City', timezone: 'America/Mexico_City', label: 'CST/CDT' },
+            { city: 'Cairo', timezone: 'Africa/Cairo', label: 'EET' },
+            { city: 'Johannesburg', timezone: 'Africa/Johannesburg', label: 'SAST' },
+            { city: 'Toronto', timezone: 'America/Toronto', label: 'EST/EDT' },
+            { city: 'Vancouver', timezone: 'America/Vancouver', label: 'PST/PDT' },
+            { city: 'Amsterdam', timezone: 'Europe/Amsterdam', label: 'CET/CEST' },
+            { city: 'Stockholm', timezone: 'Europe/Stockholm', label: 'CET/CEST' },
+            { city: 'Bangkok', timezone: 'Asia/Bangkok', label: 'ICT' },
+            { city: 'Jakarta', timezone: 'Asia/Jakarta', label: 'WIB' },
+            { city: 'Istanbul', timezone: 'Europe/Istanbul', label: 'TRT' },
+            { city: 'Honolulu', timezone: 'Pacific/Honolulu', label: 'HST' },
+        ];
+
+        class WorldClock {
+            constructor() {
+                this.clocksContainer = document.getElementById('clocks-container');
+                this.emptyState = document.getElementById('empty-state');
+                this.modalOverlay = document.getElementById('modal-overlay');
+                this.searchInput = document.getElementById('search-input');
+                this.timezoneList = document.getElementById('timezone-list');
+                this.addClockBtn = document.getElementById('add-clock-btn');
+                this.modalClose = document.getElementById('modal-close');
+                
+                this.selectedTimezones = this.loadFromStorage();
+                this.clockInstances = {};
+                
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.renderTimezoneList();
+                this.renderClocks();
+                this.startUpdateLoop();
+            }
+
+            setupEventListeners() {
+                this.addClockBtn.addEventListener('click', () => this.openModal());
+                this.modalClose.addEventListener('click', () => this.closeModal());
+                this.modalOverlay.addEventListener('click', (e) => {
+                    if (e.target === this.modalOverlay) this.closeModal();
+                });
+                this.searchInput.addEventListener('input', () => this.filterTimezones());
+            }
+
+            loadFromStorage() {
+                try {
+                    const saved = localStorage.getItem('worldClocks');
+                    return saved ? JSON.parse(saved) : ['America/New_York', 'Europe/London', 'Asia/Tokyo'];
+                } catch (e) {
+                    return ['America/New_York', 'Europe/London', 'Asia/Tokyo'];
+                }
+            }
+
+            saveToStorage() {
+                localStorage.setItem('worldClocks', JSON.stringify(this.selectedTimezones));
+            }
+
+            openModal() {
+                this.modalOverlay.classList.add('visible');
+                this.searchInput.value = '';
+                this.filterTimezones();
+                this.searchInput.focus();
+            }
+
+            closeModal() {
+                this.modalOverlay.classList.remove('visible');
+            }
+
+            filterTimezones() {
+                const query = this.searchInput.value.toLowerCase();
+                const filtered = timezones.filter(tz => 
+                    tz.city.toLowerCase().includes(query) || 
+                    tz.timezone.toLowerCase().includes(query) ||
+                    tz.label.toLowerCase().includes(query)
+                );
+                this.renderTimezoneList(filtered);
+            }
+
+            renderTimezoneList(list = timezones) {
+                this.timezoneList.innerHTML = list.map(tz => `
+                    <div class="timezone-item" data-timezone="${tz.timezone}">
+                        <div class="timezone-item-city">${tz.city}</div>
+                        <div class="timezone-item-zone">${tz.timezone} (${tz.label})</div>
+                    </div>
+                `).join('');
+
+                this.timezoneList.querySelectorAll('.timezone-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        this.addClock(item.dataset.timezone);
+                        this.closeModal();
+                    });
+                });
+            }
+
+            addClock(timezone) {
+                if (!this.selectedTimezones.includes(timezone)) {
+                    this.selectedTimezones.push(timezone);
+                    this.saveToStorage();
+                    this.renderClocks();
+                }
+            }
+
+            removeClock(timezone) {
+                this.selectedTimezones = this.selectedTimezones.filter(tz => tz !== timezone);
+                delete this.clockInstances[timezone];
+                this.saveToStorage();
+                this.renderClocks();
+            }
+
+            renderClocks() {
+                if (this.selectedTimezones.length === 0) {
+                    this.clocksContainer.innerHTML = '';
+                    this.emptyState.style.display = 'block';
+                    return;
+                }
+
+                this.emptyState.style.display = 'none';
+                this.clocksContainer.innerHTML = this.selectedTimezones.map(timezone => {
+                    const tzData = timezones.find(t => t.timezone === timezone) || 
+                        { city: timezone.split('/').pop().replace(/_/g, ' '), timezone, label: timezone };
+                    
+                    return `
+                        <div class="world-clock-card" data-timezone="${timezone}">
+                            <button class="remove-btn" data-timezone="${timezone}">×</button>
+                            <div class="city-name">${tzData.city}</div>
+                            <div class="timezone-info">${tzData.label}</div>
+                            <div class="mini-flip-clock">
+                                <div class="mini-flip-group">
+                                    <div class="mini-flip-card" data-card="hours-tens">
+                                        <div class="mini-flip-card-inner">
+                                            <div class="mini-card-face mini-card-face-top"><span>0</span></div>
+                                            <div class="mini-card-face mini-card-face-bottom"><span>0</span></div>
+                                        </div>
+                                    </div>
+                                    <div class="mini-flip-card" data-card="hours-ones">
+                                        <div class="mini-flip-card-inner">
+                                            <div class="mini-card-face mini-card-face-top"><span>0</span></div>
+                                            <div class="mini-card-face mini-card-face-bottom"><span>0</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mini-separator">
+                                    <div class="mini-separator-dot"></div>
+                                    <div class="mini-separator-dot"></div>
+                                </div>
+                                <div class="mini-flip-group">
+                                    <div class="mini-flip-card" data-card="minutes-tens">
+                                        <div class="mini-flip-card-inner">
+                                            <div class="mini-card-face mini-card-face-top"><span>0</span></div>
+                                            <div class="mini-card-face mini-card-face-bottom"><span>0</span></div>
+                                        </div>
+                                    </div>
+                                    <div class="mini-flip-card" data-card="minutes-ones">
+                                        <div class="mini-flip-card-inner">
+                                            <div class="mini-card-face mini-card-face-top"><span>0</span></div>
+                                            <div class="mini-card-face mini-card-face-bottom"><span>0</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mini-separator">
+                                    <div class="mini-separator-dot"></div>
+                                    <div class="mini-separator-dot"></div>
+                                </div>
+                                <div class="mini-flip-group">
+                                    <div class="mini-flip-card" data-card="seconds-tens">
+                                        <div class="mini-flip-card-inner">
+                                            <div class="mini-card-face mini-card-face-top"><span>0</span></div>
+                                            <div class="mini-card-face mini-card-face-bottom"><span>0</span></div>
+                                        </div>
+                                    </div>
+                                    <div class="mini-flip-card" data-card="seconds-ones">
+                                        <div class="mini-flip-card-inner">
+                                            <div class="mini-card-face mini-card-face-top"><span>0</span></div>
+                                            <div class="mini-card-face mini-card-face-bottom"><span>0</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="date-info" data-date></div>
+                        </div>
+                    `;
+                }).join('');
+
+                // Setup remove buttons
+                this.clocksContainer.querySelectorAll('.remove-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.removeClock(btn.dataset.timezone);
+                    });
+                });
+
+                // Initialize clock instances
+                this.selectedTimezones.forEach(timezone => {
+                    if (!this.clockInstances[timezone]) {
+                        this.clockInstances[timezone] = {
+                            previousValues: {
+                                hoursTens: null,
+                                hoursOnes: null,
+                                minutesTens: null,
+                                minutesOnes: null,
+                                secondsTens: null,
+                                secondsOnes: null,
+                            }
+                        };
+                    }
+                });
+
+                // Initial update
+                this.updateAllClocks();
+            }
+
+            startUpdateLoop() {
+                setInterval(() => this.updateAllClocks(), 1000);
+            }
+
+            updateAllClocks() {
+                this.selectedTimezones.forEach(timezone => {
+                    const card = this.clocksContainer.querySelector(`[data-timezone="${timezone}"]`);
+                    if (!card) return;
+
+                    const now = new Date();
+                    const options = { timeZone: timezone, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+                    const timeStr = now.toLocaleTimeString('en-US', options);
+                    const [hours, minutes, seconds] = timeStr.split(':');
+
+                    this.updateCard(card, timezone, 'hours-tens', hours[0]);
+                    this.updateCard(card, timezone, 'hours-ones', hours[1]);
+                    this.updateCard(card, timezone, 'minutes-tens', minutes[0]);
+                    this.updateCard(card, timezone, 'minutes-ones', minutes[1]);
+                    this.updateCard(card, timezone, 'seconds-tens', seconds[0]);
+                    this.updateCard(card, timezone, 'seconds-ones', seconds[1]);
+
+                    // Update date
+                    const dateOptions = { timeZone: timezone, weekday: 'short', month: 'short', day: 'numeric' };
+                    const dateStr = now.toLocaleDateString('en-US', dateOptions);
+                    const dateEl = card.querySelector('[data-date]');
+                    if (dateEl) dateEl.textContent = dateStr;
+                });
+            }
+
+            updateCard(clockCard, timezone, cardName, newValue) {
+                const card = clockCard.querySelector(`[data-card="${cardName}"]`);
+                if (!card) return;
+
+                const instance = this.clockInstances[timezone];
+                if (!instance) return;
+
+                const keyMap = {
+                    'hours-tens': 'hoursTens',
+                    'hours-ones': 'hoursOnes',
+                    'minutes-tens': 'minutesTens',
+                    'minutes-ones': 'minutesOnes',
+                    'seconds-tens': 'secondsTens',
+                    'seconds-ones': 'secondsOnes',
+                };
+                const key = keyMap[cardName];
+                const prevValue = instance.previousValues[key];
+
+                if (prevValue === newValue) return;
+
+                if (prevValue !== null) {
+                    this.flipCard(card, prevValue, newValue);
+                } else {
+                    this.setCardValue(card, newValue);
+                }
+
+                instance.previousValues[key] = newValue;
+            }
+
+            setCardValue(card, value) {
+                const topSpan = card.querySelector('.mini-card-face-top span');
+                const bottomSpan = card.querySelector('.mini-card-face-bottom span');
+                if (topSpan) topSpan.textContent = value;
+                if (bottomSpan) bottomSpan.textContent = value;
+            }
+
+            flipCard(card, oldValue, newValue) {
+                const existingFlipTop = card.querySelector('.flip-top');
+                const existingFlipBottom = card.querySelector('.flip-bottom');
+                if (existingFlipTop) existingFlipTop.remove();
+                if (existingFlipBottom) existingFlipBottom.remove();
+
+                const flipTop = document.createElement('div');
+                flipTop.className = 'flip-top';
+                flipTop.innerHTML = `<span>${oldValue}</span>`;
+
+                const flipBottom = document.createElement('div');
+                flipBottom.className = 'flip-bottom';
+                flipBottom.innerHTML = `<span>${newValue}</span>`;
+
+                const topSpan = card.querySelector('.mini-card-face-top span');
+                const bottomSpan = card.querySelector('.mini-card-face-bottom span');
+                
+                if (topSpan) topSpan.textContent = newValue;
+                if (bottomSpan) bottomSpan.textContent = oldValue;
+
+                card.appendChild(flipTop);
+                card.appendChild(flipBottom);
+                card.classList.add('flipping');
+
+                setTimeout(() => {
+                    if (bottomSpan) bottomSpan.textContent = newValue;
+                }, 300);
+
+                setTimeout(() => {
+                    card.classList.remove('flipping');
+                    flipTop.remove();
+                    flipBottom.remove();
+                }, 600);
+            }
+        }
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('SW registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('SW registration failed:', error);
+                    });
+            });
+        }
+
+        // Initialize world clock
+        new WorldClock();
+    </script>
+</body>
+</html>
