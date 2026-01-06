@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Flip Timer">
+    <meta name="description" content="A beautiful retro flip timer">
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    
+    <title>Timer - Flip Clock</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@300&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'bebas': ['Bebas Neue', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        'clock-dark': '#0a0a0f',
+                        'clock-card': '#1a1a24',
+                        'clock-accent': '#f0c674',
+                        'clock-text': '#e8e8e8',
+                        'clock-shadow': '#050508',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --flip-duration: 0.6s;
+            --card-depth: 8px;
+            --ambient-glow: rgba(240, 198, 116, 0.03);
+        }
+
+        body {
+            font-family: 'Bebas Neue', sans-serif;
+            background: linear-gradient(145deg, #0a0a0f 0%, #12121a 50%, #0a0a0f 100%);
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* Noise texture overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Ambient light effect */
+        .ambient-light {
+            position: fixed;
+            width: 150%;
+            height: 150%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(ellipse at center, var(--ambient-glow) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .clock-container {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+            animation: fadeIn 1.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .flip-clock {
+            display: flex;
+            align-items: center;
+            gap: clamp(0.5rem, 2vw, 1.5rem);
+        }
+
+        .flip-group {
+            display: flex;
+            gap: clamp(0.25rem, 0.8vw, 0.5rem);
+        }
+
+        .flip-card {
+            position: relative;
+            width: clamp(60px, 15vw, 140px);
+            height: clamp(80px, 20vw, 180px);
+            perspective: 1000px;
+            border-radius: 12px;
+            box-shadow: 
+                0 var(--card-depth) 0 0 #0f0f14,
+                0 calc(var(--card-depth) + 4px) 20px rgba(0, 0, 0, 0.5),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 50%;
+            overflow: hidden;
+            backface-visibility: hidden;
+            background: linear-gradient(180deg, #1f1f2a 0%, #1a1a24 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-face-top {
+            top: 0;
+            border-radius: 12px 12px 0 0;
+            align-items: flex-end;
+            border-bottom: 2px solid #0a0a0f;
+            background: linear-gradient(180deg, #252532 0%, #1f1f2a 100%);
+        }
+
+        .card-face-top::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, rgba(0,0,0,0.3) 20%, rgba(0,0,0,0.3) 80%, transparent);
+        }
+
+        .card-face-bottom {
+            bottom: 0;
+            border-radius: 0 0 12px 12px;
+            align-items: flex-start;
+            background: linear-gradient(180deg, #1a1a24 0%, #16161e 100%);
+        }
+
+        .card-face-bottom::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .card-face span {
+            font-size: clamp(4rem, 12vw, 10rem);
+            color: #e8e8e8;
+            line-height: 1;
+            transform: translateY(0);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-face-top span {
+            transform: translateY(50%);
+        }
+
+        .card-face-bottom span {
+            transform: translateY(-50%);
+        }
+
+        /* Flip animation elements */
+        .flip-card .flip-top,
+        .flip-card .flip-bottom {
+            position: absolute;
+            width: 100%;
+            height: 50%;
+            overflow: hidden;
+            backface-visibility: hidden;
+        }
+
+        .flip-card .flip-top {
+            top: 0;
+            transform-origin: bottom;
+            border-radius: 12px 12px 0 0;
+            background: linear-gradient(180deg, #252532 0%, #1f1f2a 100%);
+            z-index: 10;
+        }
+
+        .flip-card .flip-bottom {
+            bottom: 0;
+            transform-origin: top;
+            transform: rotateX(90deg);
+            border-radius: 0 0 12px 12px;
+            background: linear-gradient(180deg, #1a1a24 0%, #16161e 100%);
+            z-index: 10;
+        }
+
+        .flip-card .flip-top span,
+        .flip-card .flip-bottom span {
+            position: absolute;
+            width: 100%;
+            height: 200%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(4rem, 12vw, 10rem);
+            color: #e8e8e8;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .flip-card .flip-top span {
+            top: 0;
+        }
+
+        .flip-card .flip-bottom span {
+            bottom: 0;
+        }
+
+        .flip-card.flipping .flip-top {
+            animation: flipTop var(--flip-duration) ease-in forwards;
+        }
+
+        .flip-card.flipping .flip-bottom {
+            animation: flipBottom var(--flip-duration) ease-out forwards;
+            animation-delay: calc(var(--flip-duration) / 2);
+        }
+
+        @keyframes flipTop {
+            0% {
+                transform: rotateX(0deg);
+            }
+            100% {
+                transform: rotateX(-90deg);
+            }
+        }
+
+        @keyframes flipBottom {
+            0% {
+                transform: rotateX(90deg);
+            }
+            100% {
+                transform: rotateX(0deg);
+            }
+        }
+
+        /* Separator */
+        .separator {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.8rem, 2vw, 1.5rem);
+            padding: 0 clamp(0.25rem, 1vw, 0.5rem);
+        }
+
+        .separator-dot {
+            width: clamp(10px, 2vw, 16px);
+            height: clamp(10px, 2vw, 16px);
+            background: linear-gradient(145deg, #f0c674 0%, #d4a54a 100%);
+            border-radius: 50%;
+            box-shadow: 
+                0 0 20px rgba(240, 198, 116, 0.3),
+                0 0 40px rgba(240, 198, 116, 0.1),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .separator-dot:nth-child(2) {
+            animation-delay: 0.5s;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.6;
+                transform: scale(0.9);
+            }
+        }
+
+        /* Title display */
+        .title-display {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: clamp(0.75rem, 2vw, 1.1rem);
+            font-weight: 300;
+            color: rgba(240, 198, 116, 0.7);
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            padding: 0.75rem 1.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(240, 198, 116, 0.1);
+            border-radius: 100px;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Back button */
+        .back-btn {
+            position: fixed;
+            top: 1.5rem;
+            left: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: rgba(240, 198, 116, 0.7);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(240, 198, 116, 0.1);
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .back-btn:hover {
+            background: rgba(240, 198, 116, 0.1);
+            color: #f0c674;
+        }
+
+        /* Control buttons */
+        .controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+
+        .control-btn {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            letter-spacing: 0.1em;
+            padding: 0.75rem 2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(240, 198, 116, 0.3);
+            background: rgba(255, 255, 255, 0.02);
+            color: rgba(240, 198, 116, 0.8);
+        }
+
+        .control-btn:hover {
+            background: rgba(240, 198, 116, 0.1);
+            border-color: rgba(240, 198, 116, 0.5);
+            color: #f0c674;
+            transform: translateY(-2px);
+        }
+
+        .control-btn.primary {
+            background: linear-gradient(145deg, #f0c674 0%, #d4a54a 100%);
+            color: #0a0a0f;
+            border: none;
+        }
+
+        .control-btn.primary:hover {
+            box-shadow: 0 4px 20px rgba(240, 198, 116, 0.3);
+        }
+
+        .control-btn.danger {
+            border-color: rgba(255, 100, 100, 0.3);
+            color: rgba(255, 100, 100, 0.8);
+        }
+
+        .control-btn.danger:hover {
+            background: rgba(255, 100, 100, 0.1);
+            border-color: rgba(255, 100, 100, 0.5);
+            color: #ff6464;
+        }
+
+        /* Time input container */
+        .time-input-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .time-input {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(2rem, 5vw, 3rem);
+            width: clamp(60px, 12vw, 100px);
+            text-align: center;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(240, 198, 116, 0.2);
+            border-radius: 8px;
+            color: #e8e8e8;
+            padding: 0.5rem;
+            outline: none;
+        }
+
+        .time-input:focus {
+            border-color: rgba(240, 198, 116, 0.5);
+            box-shadow: 0 0 10px rgba(240, 198, 116, 0.2);
+        }
+
+        .time-input-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: rgba(240, 198, 116, 0.5);
+            text-transform: uppercase;
+        }
+
+        .time-input-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .time-input-separator {
+            font-size: clamp(2rem, 5vw, 3rem);
+            color: rgba(240, 198, 116, 0.5);
+        }
+
+        /* Quick presets */
+        .presets {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .preset-btn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(240, 198, 116, 0.2);
+            background: rgba(255, 255, 255, 0.02);
+            color: rgba(240, 198, 116, 0.6);
+        }
+
+        .preset-btn:hover {
+            background: rgba(240, 198, 116, 0.1);
+            color: #f0c674;
+        }
+
+        /* Timer complete animation */
+        .timer-complete {
+            animation: timerComplete 0.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes timerComplete {
+            from {
+                filter: drop-shadow(0 0 10px rgba(255, 100, 100, 0.3));
+            }
+            to {
+                filter: drop-shadow(0 0 30px rgba(255, 100, 100, 0.7));
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .flip-clock {
+                gap: 0.5rem;
+            }
+            
+            .flip-group {
+                gap: 0.2rem;
+            }
+
+            .flip-card {
+                --card-depth: 5px;
+                border-radius: 8px;
+            }
+
+            .card-face-top,
+            .flip-card .flip-top {
+                border-radius: 8px 8px 0 0;
+            }
+
+            .card-face-bottom,
+            .flip-card .flip-bottom {
+                border-radius: 0 0 8px 8px;
+            }
+
+            .back-btn {
+                top: 1rem;
+                left: 1rem;
+                font-size: 0.75rem;
+                padding: 0.4rem 0.8rem;
+            }
+
+            .controls {
+                gap: 0.5rem;
+            }
+
+            .control-btn {
+                padding: 0.5rem 1.5rem;
+            }
+        }
+
+        /* Landscape phone optimization */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .clock-container {
+                gap: 0.75rem;
+            }
+
+            .flip-card {
+                width: clamp(40px, 8vw, 60px);
+                height: clamp(55px, 12vw, 80px);
+            }
+
+            .card-face span,
+            .flip-card .flip-top span,
+            .flip-card .flip-bottom span {
+                font-size: clamp(2.5rem, 6vw, 4rem);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ambient-light"></div>
+    
+    <a href="index.html" class="back-btn">← Home</a>
+    
+    <div class="clock-container">
+        <div class="title-display">Timer</div>
+        
+        <!-- Time Input (shown when not running) -->
+        <div id="time-input-section">
+            <div class="presets">
+                <button class="preset-btn" data-minutes="1">1 min</button>
+                <button class="preset-btn" data-minutes="5">5 min</button>
+                <button class="preset-btn" data-minutes="10">10 min</button>
+                <button class="preset-btn" data-minutes="15">15 min</button>
+                <button class="preset-btn" data-minutes="30">30 min</button>
+                <button class="preset-btn" data-minutes="60">1 hour</button>
+            </div>
+            
+            <div class="time-input-container">
+                <div class="time-input-group">
+                    <input type="number" id="input-hours" class="time-input" min="0" max="99" value="0" placeholder="00">
+                    <span class="time-input-label">Hours</span>
+                </div>
+                <span class="time-input-separator">:</span>
+                <div class="time-input-group">
+                    <input type="number" id="input-minutes" class="time-input" min="0" max="59" value="5" placeholder="00">
+                    <span class="time-input-label">Minutes</span>
+                </div>
+                <span class="time-input-separator">:</span>
+                <div class="time-input-group">
+                    <input type="number" id="input-seconds" class="time-input" min="0" max="59" value="0" placeholder="00">
+                    <span class="time-input-label">Seconds</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flip-clock" id="timer-display">
+            <!-- Hours -->
+            <div class="flip-group">
+                <div class="flip-card" id="hours-tens">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>0</span></div>
+                        <div class="card-face card-face-bottom"><span>0</span></div>
+                    </div>
+                </div>
+                <div class="flip-card" id="hours-ones">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>0</span></div>
+                        <div class="card-face card-face-bottom"><span>0</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Separator -->
+            <div class="separator">
+                <div class="separator-dot"></div>
+                <div class="separator-dot"></div>
+            </div>
+            
+            <!-- Minutes -->
+            <div class="flip-group">
+                <div class="flip-card" id="minutes-tens">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>0</span></div>
+                        <div class="card-face card-face-bottom"><span>0</span></div>
+                    </div>
+                </div>
+                <div class="flip-card" id="minutes-ones">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>5</span></div>
+                        <div class="card-face card-face-bottom"><span>5</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Separator -->
+            <div class="separator">
+                <div class="separator-dot"></div>
+                <div class="separator-dot"></div>
+            </div>
+            
+            <!-- Seconds -->
+            <div class="flip-group">
+                <div class="flip-card" id="seconds-tens">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>0</span></div>
+                        <div class="card-face card-face-bottom"><span>0</span></div>
+                    </div>
+                </div>
+                <div class="flip-card" id="seconds-ones">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>0</span></div>
+                        <div class="card-face card-face-bottom"><span>0</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="control-btn primary" id="start-btn">Start</button>
+            <button class="control-btn" id="pause-btn" style="display: none;">Pause</button>
+            <button class="control-btn danger" id="reset-btn" style="display: none;">Reset</button>
+        </div>
+    </div>
+
+    <script>
+        class FlipTimer {
+            constructor() {
+                this.cards = {
+                    hoursTens: document.getElementById('hours-tens'),
+                    hoursOnes: document.getElementById('hours-ones'),
+                    minutesTens: document.getElementById('minutes-tens'),
+                    minutesOnes: document.getElementById('minutes-ones'),
+                    secondsTens: document.getElementById('seconds-tens'),
+                    secondsOnes: document.getElementById('seconds-ones'),
+                };
+                
+                this.inputHours = document.getElementById('input-hours');
+                this.inputMinutes = document.getElementById('input-minutes');
+                this.inputSeconds = document.getElementById('input-seconds');
+                this.inputSection = document.getElementById('time-input-section');
+                this.timerDisplay = document.getElementById('timer-display');
+                
+                this.startBtn = document.getElementById('start-btn');
+                this.pauseBtn = document.getElementById('pause-btn');
+                this.resetBtn = document.getElementById('reset-btn');
+                
+                this.previousValues = {
+                    hoursTens: null,
+                    hoursOnes: null,
+                    minutesTens: null,
+                    minutesOnes: null,
+                    secondsTens: null,
+                    secondsOnes: null,
+                };
+                
+                this.totalSeconds = 300; // Default 5 minutes
+                this.remainingSeconds = this.totalSeconds;
+                this.isRunning = false;
+                this.intervalId = null;
+                
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.updateDisplay();
+            }
+
+            setupEventListeners() {
+                this.startBtn.addEventListener('click', () => this.start());
+                this.pauseBtn.addEventListener('click', () => this.pause());
+                this.resetBtn.addEventListener('click', () => this.reset());
+                
+                // Preset buttons
+                document.querySelectorAll('.preset-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const minutes = parseInt(btn.dataset.minutes);
+                        this.inputHours.value = Math.floor(minutes / 60);
+                        this.inputMinutes.value = minutes % 60;
+                        this.inputSeconds.value = 0;
+                        this.updateFromInputs();
+                    });
+                });
+                
+                // Input change handlers
+                [this.inputHours, this.inputMinutes, this.inputSeconds].forEach(input => {
+                    input.addEventListener('change', () => this.updateFromInputs());
+                    input.addEventListener('input', () => this.updateFromInputs());
+                });
+            }
+
+            updateFromInputs() {
+                const hours = parseInt(this.inputHours.value) || 0;
+                const minutes = parseInt(this.inputMinutes.value) || 0;
+                const seconds = parseInt(this.inputSeconds.value) || 0;
+                
+                this.totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+                this.remainingSeconds = this.totalSeconds;
+                this.updateDisplay();
+            }
+
+            start() {
+                if (this.remainingSeconds <= 0) {
+                    this.updateFromInputs();
+                }
+                
+                if (this.remainingSeconds <= 0) return;
+                
+                this.isRunning = true;
+                this.startBtn.style.display = 'none';
+                this.pauseBtn.style.display = 'inline-block';
+                this.resetBtn.style.display = 'inline-block';
+                this.inputSection.style.display = 'none';
+                this.timerDisplay.classList.remove('timer-complete');
+                
+                this.intervalId = setInterval(() => this.tick(), 1000);
+            }
+
+            pause() {
+                this.isRunning = false;
+                clearInterval(this.intervalId);
+                this.startBtn.textContent = 'Resume';
+                this.startBtn.style.display = 'inline-block';
+                this.pauseBtn.style.display = 'none';
+            }
+
+            reset() {
+                this.isRunning = false;
+                clearInterval(this.intervalId);
+                this.remainingSeconds = this.totalSeconds;
+                this.startBtn.textContent = 'Start';
+                this.startBtn.style.display = 'inline-block';
+                this.pauseBtn.style.display = 'none';
+                this.resetBtn.style.display = 'none';
+                this.inputSection.style.display = 'block';
+                this.timerDisplay.classList.remove('timer-complete');
+                
+                // Reset previous values to force update
+                Object.keys(this.previousValues).forEach(key => {
+                    this.previousValues[key] = null;
+                });
+                
+                this.updateDisplay();
+            }
+
+            tick() {
+                if (this.remainingSeconds > 0) {
+                    this.remainingSeconds--;
+                    this.updateDisplay();
+                } else {
+                    this.complete();
+                }
+            }
+
+            complete() {
+                this.isRunning = false;
+                clearInterval(this.intervalId);
+                this.timerDisplay.classList.add('timer-complete');
+                this.startBtn.textContent = 'Start';
+                this.startBtn.style.display = 'inline-block';
+                this.pauseBtn.style.display = 'none';
+                
+                // Play sound or vibrate if available
+                if ('vibrate' in navigator) {
+                    navigator.vibrate([200, 100, 200, 100, 200]);
+                }
+                
+                // Try to play a notification sound
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.value = 800;
+                    oscillator.type = 'sine';
+                    gainNode.gain.value = 0.3;
+                    
+                    oscillator.start();
+                    setTimeout(() => oscillator.stop(), 500);
+                } catch (e) {
+                    console.log('Audio not available');
+                }
+            }
+
+            updateDisplay() {
+                const hours = Math.floor(this.remainingSeconds / 3600);
+                const minutes = Math.floor((this.remainingSeconds % 3600) / 60);
+                const seconds = this.remainingSeconds % 60;
+                
+                const hoursStr = String(hours).padStart(2, '0');
+                const minutesStr = String(minutes).padStart(2, '0');
+                const secondsStr = String(seconds).padStart(2, '0');
+
+                this.updateCard('hoursTens', hoursStr[0]);
+                this.updateCard('hoursOnes', hoursStr[1]);
+                this.updateCard('minutesTens', minutesStr[0]);
+                this.updateCard('minutesOnes', minutesStr[1]);
+                this.updateCard('secondsTens', secondsStr[0]);
+                this.updateCard('secondsOnes', secondsStr[1]);
+            }
+
+            updateCard(cardName, newValue) {
+                const card = this.cards[cardName];
+                const prevValue = this.previousValues[cardName];
+
+                if (prevValue === newValue) return;
+
+                if (prevValue !== null) {
+                    this.flipCard(card, prevValue, newValue);
+                } else {
+                    this.setCardValue(card, newValue);
+                }
+
+                this.previousValues[cardName] = newValue;
+            }
+
+            setCardValue(card, value) {
+                const topSpan = card.querySelector('.card-face-top span');
+                const bottomSpan = card.querySelector('.card-face-bottom span');
+                topSpan.textContent = value;
+                bottomSpan.textContent = value;
+            }
+
+            flipCard(card, oldValue, newValue) {
+                const existingFlipTop = card.querySelector('.flip-top');
+                const existingFlipBottom = card.querySelector('.flip-bottom');
+                if (existingFlipTop) existingFlipTop.remove();
+                if (existingFlipBottom) existingFlipBottom.remove();
+
+                const flipTop = document.createElement('div');
+                flipTop.className = 'flip-top';
+                flipTop.innerHTML = `<span>${oldValue}</span>`;
+
+                const flipBottom = document.createElement('div');
+                flipBottom.className = 'flip-bottom';
+                flipBottom.innerHTML = `<span>${newValue}</span>`;
+
+                const topSpan = card.querySelector('.card-face-top span');
+                const bottomSpan = card.querySelector('.card-face-bottom span');
+                
+                topSpan.textContent = newValue;
+                bottomSpan.textContent = oldValue;
+
+                card.appendChild(flipTop);
+                card.appendChild(flipBottom);
+                card.classList.add('flipping');
+
+                setTimeout(() => {
+                    bottomSpan.textContent = newValue;
+                }, 300);
+
+                setTimeout(() => {
+                    card.classList.remove('flipping');
+                    flipTop.remove();
+                    flipBottom.remove();
+                }, 600);
+            }
+        }
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('SW registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('SW registration failed:', error);
+                    });
+            });
+        }
+
+        // Initialize timer
+        new FlipTimer();
+    </script>
+</body>
+</html>

@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Flip Stopwatch">
+    <meta name="description" content="A beautiful retro flip stopwatch">
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    
+    <title>Stopwatch - Flip Clock</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@300&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'bebas': ['Bebas Neue', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        'clock-dark': '#0a0a0f',
+                        'clock-card': '#1a1a24',
+                        'clock-accent': '#f0c674',
+                        'clock-text': '#e8e8e8',
+                        'clock-shadow': '#050508',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --flip-duration: 0.6s;
+            --card-depth: 8px;
+            --ambient-glow: rgba(240, 198, 116, 0.03);
+        }
+
+        body {
+            font-family: 'Bebas Neue', sans-serif;
+            background: linear-gradient(145deg, #0a0a0f 0%, #12121a 50%, #0a0a0f 100%);
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* Noise texture overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Ambient light effect */
+        .ambient-light {
+            position: fixed;
+            width: 150%;
+            height: 150%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(ellipse at center, var(--ambient-glow) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .clock-container {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            animation: fadeIn 1.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .flip-clock {
+            display: flex;
+            align-items: center;
+            gap: clamp(0.5rem, 2vw, 1.5rem);
+        }
+
+        .flip-group {
+            display: flex;
+            gap: clamp(0.25rem, 0.8vw, 0.5rem);
+        }
+
+        .flip-card {
+            position: relative;
+            width: clamp(50px, 12vw, 120px);
+            height: clamp(70px, 16vw, 150px);
+            perspective: 1000px;
+            border-radius: 12px;
+            box-shadow: 
+                0 var(--card-depth) 0 0 #0f0f14,
+                0 calc(var(--card-depth) + 4px) 20px rgba(0, 0, 0, 0.5),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 50%;
+            overflow: hidden;
+            backface-visibility: hidden;
+            background: linear-gradient(180deg, #1f1f2a 0%, #1a1a24 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-face-top {
+            top: 0;
+            border-radius: 12px 12px 0 0;
+            align-items: flex-end;
+            border-bottom: 2px solid #0a0a0f;
+            background: linear-gradient(180deg, #252532 0%, #1f1f2a 100%);
+        }
+
+        .card-face-top::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, rgba(0,0,0,0.3) 20%, rgba(0,0,0,0.3) 80%, transparent);
+        }
+
+        .card-face-bottom {
+            bottom: 0;
+            border-radius: 0 0 12px 12px;
+            align-items: flex-start;
+            background: linear-gradient(180deg, #1a1a24 0%, #16161e 100%);
+        }
+
+        .card-face-bottom::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .card-face span {
+            font-size: clamp(3rem, 9vw, 8rem);
+            color: #e8e8e8;
+            line-height: 1;
+            transform: translateY(0);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-face-top span {
+            transform: translateY(50%);
+        }
+
+        .card-face-bottom span {
+            transform: translateY(-50%);
+        }
+
+        /* Flip animation elements */
+        .flip-card .flip-top,
+        .flip-card .flip-bottom {
+            position: absolute;
+            width: 100%;
+            height: 50%;
+            overflow: hidden;
+            backface-visibility: hidden;
+        }
+
+        .flip-card .flip-top {
+            top: 0;
+            transform-origin: bottom;
+            border-radius: 12px 12px 0 0;
+            background: linear-gradient(180deg, #252532 0%, #1f1f2a 100%);
+            z-index: 10;
+        }
+
+        .flip-card .flip-bottom {
+            bottom: 0;
+            transform-origin: top;
+            transform: rotateX(90deg);
+            border-radius: 0 0 12px 12px;
+            background: linear-gradient(180deg, #1a1a24 0%, #16161e 100%);
+            z-index: 10;
+        }
+
+        .flip-card .flip-top span,
+        .flip-card .flip-bottom span {
+            position: absolute;
+            width: 100%;
+            height: 200%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(3rem, 9vw, 8rem);
+            color: #e8e8e8;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .flip-card .flip-top span {
+            top: 0;
+        }
+
+        .flip-card .flip-bottom span {
+            bottom: 0;
+        }
+
+        .flip-card.flipping .flip-top {
+            animation: flipTop var(--flip-duration) ease-in forwards;
+        }
+
+        .flip-card.flipping .flip-bottom {
+            animation: flipBottom var(--flip-duration) ease-out forwards;
+            animation-delay: calc(var(--flip-duration) / 2);
+        }
+
+        @keyframes flipTop {
+            0% {
+                transform: rotateX(0deg);
+            }
+            100% {
+                transform: rotateX(-90deg);
+            }
+        }
+
+        @keyframes flipBottom {
+            0% {
+                transform: rotateX(90deg);
+            }
+            100% {
+                transform: rotateX(0deg);
+            }
+        }
+
+        /* Separator */
+        .separator {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.6rem, 1.5vw, 1.2rem);
+            padding: 0 clamp(0.2rem, 0.8vw, 0.4rem);
+        }
+
+        .separator-dot {
+            width: clamp(8px, 1.5vw, 14px);
+            height: clamp(8px, 1.5vw, 14px);
+            background: linear-gradient(145deg, #f0c674 0%, #d4a54a 100%);
+            border-radius: 50%;
+            box-shadow: 
+                0 0 20px rgba(240, 198, 116, 0.3),
+                0 0 40px rgba(240, 198, 116, 0.1),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .separator-dot:nth-child(2) {
+            animation-delay: 0.5s;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.6;
+                transform: scale(0.9);
+            }
+        }
+
+        /* Small separator for milliseconds */
+        .separator-small {
+            display: flex;
+            align-items: center;
+            padding: 0 clamp(0.1rem, 0.5vw, 0.3rem);
+        }
+
+        .separator-small-dot {
+            width: clamp(6px, 1vw, 10px);
+            height: clamp(6px, 1vw, 10px);
+            background: linear-gradient(145deg, #f0c674 0%, #d4a54a 100%);
+            border-radius: 50%;
+            box-shadow: 
+                0 0 15px rgba(240, 198, 116, 0.2),
+                inset 0 -1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Title display */
+        .title-display {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: clamp(0.75rem, 2vw, 1.1rem);
+            font-weight: 300;
+            color: rgba(240, 198, 116, 0.7);
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            padding: 0.75rem 1.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(240, 198, 116, 0.1);
+            border-radius: 100px;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Back button */
+        .back-btn {
+            position: fixed;
+            top: 1.5rem;
+            left: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: rgba(240, 198, 116, 0.7);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(240, 198, 116, 0.1);
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .back-btn:hover {
+            background: rgba(240, 198, 116, 0.1);
+            color: #f0c674;
+        }
+
+        /* Control buttons */
+        .controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .control-btn {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            letter-spacing: 0.1em;
+            padding: 0.75rem 2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(240, 198, 116, 0.3);
+            background: rgba(255, 255, 255, 0.02);
+            color: rgba(240, 198, 116, 0.8);
+        }
+
+        .control-btn:hover {
+            background: rgba(240, 198, 116, 0.1);
+            border-color: rgba(240, 198, 116, 0.5);
+            color: #f0c674;
+            transform: translateY(-2px);
+        }
+
+        .control-btn.primary {
+            background: linear-gradient(145deg, #f0c674 0%, #d4a54a 100%);
+            color: #0a0a0f;
+            border: none;
+        }
+
+        .control-btn.primary:hover {
+            box-shadow: 0 4px 20px rgba(240, 198, 116, 0.3);
+        }
+
+        .control-btn.danger {
+            border-color: rgba(255, 100, 100, 0.3);
+            color: rgba(255, 100, 100, 0.8);
+        }
+
+        .control-btn.danger:hover {
+            background: rgba(255, 100, 100, 0.1);
+            border-color: rgba(255, 100, 100, 0.5);
+            color: #ff6464;
+        }
+
+        /* Lap list */
+        .lap-list {
+            max-height: 150px;
+            overflow-y: auto;
+            width: 100%;
+            max-width: 400px;
+            margin-top: 0.5rem;
+        }
+
+        .lap-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .lap-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 3px;
+        }
+
+        .lap-list::-webkit-scrollbar-thumb {
+            background: rgba(240, 198, 116, 0.3);
+            border-radius: 3px;
+        }
+
+        .lap-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.6);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .lap-item:last-child {
+            border-bottom: none;
+        }
+
+        .lap-number {
+            color: rgba(240, 198, 116, 0.7);
+        }
+
+        .lap-time {
+            color: #e8e8e8;
+        }
+
+        .lap-diff {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.7rem;
+        }
+
+        /* Milliseconds display (smaller cards) */
+        .flip-card-ms {
+            width: clamp(35px, 8vw, 80px);
+            height: clamp(50px, 11vw, 100px);
+        }
+
+        .flip-card-ms .card-face span,
+        .flip-card-ms .flip-top span,
+        .flip-card-ms .flip-bottom span {
+            font-size: clamp(2rem, 6vw, 5rem);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .flip-clock {
+                gap: 0.3rem;
+            }
+            
+            .flip-group {
+                gap: 0.15rem;
+            }
+
+            .flip-card {
+                --card-depth: 5px;
+                border-radius: 8px;
+            }
+
+            .card-face-top,
+            .flip-card .flip-top {
+                border-radius: 8px 8px 0 0;
+            }
+
+            .card-face-bottom,
+            .flip-card .flip-bottom {
+                border-radius: 0 0 8px 8px;
+            }
+
+            .back-btn {
+                top: 1rem;
+                left: 1rem;
+                font-size: 0.75rem;
+                padding: 0.4rem 0.8rem;
+            }
+
+            .controls {
+                gap: 0.5rem;
+            }
+
+            .control-btn {
+                padding: 0.5rem 1.5rem;
+            }
+
+            .lap-list {
+                max-height: 100px;
+            }
+        }
+
+        /* Landscape phone optimization */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .clock-container {
+                gap: 0.5rem;
+            }
+
+            .flip-card {
+                width: clamp(35px, 7vw, 50px);
+                height: clamp(45px, 10vw, 65px);
+            }
+
+            .card-face span,
+            .flip-card .flip-top span,
+            .flip-card .flip-bottom span {
+                font-size: clamp(2rem, 5vw, 3rem);
+            }
+
+            .flip-card-ms {
+                width: clamp(25px, 5vw, 35px);
+                height: clamp(35px, 7vw, 45px);
+            }
+
+            .flip-card-ms .card-face span,
+            .flip-card-ms .flip-top span,
+            .flip-card-ms .flip-bottom span {
+                font-size: clamp(1.5rem, 3vw, 2rem);
+            }
+
+            .lap-list {
+                max-height: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ambient-light"></div>
+    
+    <a href="index.html" class="back-btn">← Home</a>
+    
+    <div class="clock-container">
+        <div class="title-display">Stopwatch</div>
+        
+        <div class="flip-clock" id="stopwatch-display">
+            <!-- Minutes -->
+            <div class="flip-group">
+                <div class="flip-card" id="minutes-tens">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>0</span></div>
+                        <div class="card-face card-face-bottom"><span>0</span></div>
+                    </div>
+                </div>
+                <div class="flip-card" id="minutes-ones">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>0</span></div>
+                        <div class="card-face card-face-bottom"><span>0</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Separator -->
+            <div class="separator">
+                <div class="separator-dot"></div>
+                <div class="separator-dot"></div>
+            </div>
+            
+            <!-- Seconds -->
+            <div class="flip-group">
+                <div class="flip-card" id="seconds-tens">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>0</span></div>
+                        <div class="card-face card-face-bottom"><span>0</span></div>
+                    </div>
+                </div>
+                <div class="flip-card" id="seconds-ones">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>0</span></div>
+                        <div class="card-face card-face-bottom"><span>0</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Small separator -->
+            <div class="separator-small">
+                <div class="separator-small-dot"></div>
+            </div>
+            
+            <!-- Milliseconds (centiseconds) -->
+            <div class="flip-group">
+                <div class="flip-card flip-card-ms" id="ms-tens">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>0</span></div>
+                        <div class="card-face card-face-bottom"><span>0</span></div>
+                    </div>
+                </div>
+                <div class="flip-card flip-card-ms" id="ms-ones">
+                    <div class="flip-card-inner">
+                        <div class="card-face card-face-top"><span>0</span></div>
+                        <div class="card-face card-face-bottom"><span>0</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="control-btn primary" id="start-btn">Start</button>
+            <button class="control-btn" id="lap-btn" style="display: none;">Lap</button>
+            <button class="control-btn danger" id="reset-btn" style="display: none;">Reset</button>
+        </div>
+        
+        <div class="lap-list" id="lap-list"></div>
+    </div>
+
+    <script>
+        class FlipStopwatch {
+            constructor() {
+                this.cards = {
+                    minutesTens: document.getElementById('minutes-tens'),
+                    minutesOnes: document.getElementById('minutes-ones'),
+                    secondsTens: document.getElementById('seconds-tens'),
+                    secondsOnes: document.getElementById('seconds-ones'),
+                    msTens: document.getElementById('ms-tens'),
+                    msOnes: document.getElementById('ms-ones'),
+                };
+                
+                this.startBtn = document.getElementById('start-btn');
+                this.lapBtn = document.getElementById('lap-btn');
+                this.resetBtn = document.getElementById('reset-btn');
+                this.lapList = document.getElementById('lap-list');
+                
+                this.previousValues = {
+                    minutesTens: '0',
+                    minutesOnes: '0',
+                    secondsTens: '0',
+                    secondsOnes: '0',
+                    msTens: '0',
+                    msOnes: '0',
+                };
+                
+                this.elapsedTime = 0;
+                this.isRunning = false;
+                this.intervalId = null;
+                this.startTime = null;
+                this.laps = [];
+                this.lastLapTime = 0;
+                
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.updateDisplay();
+            }
+
+            setupEventListeners() {
+                this.startBtn.addEventListener('click', () => this.toggleStartStop());
+                this.lapBtn.addEventListener('click', () => this.lap());
+                this.resetBtn.addEventListener('click', () => this.reset());
+            }
+
+            toggleStartStop() {
+                if (this.isRunning) {
+                    this.pause();
+                } else {
+                    this.start();
+                }
+            }
+
+            start() {
+                this.isRunning = true;
+                this.startBtn.textContent = 'Pause';
+                this.lapBtn.style.display = 'inline-block';
+                this.resetBtn.style.display = 'inline-block';
+                
+                this.startTime = Date.now() - this.elapsedTime;
+                this.intervalId = setInterval(() => this.tick(), 10);
+            }
+
+            pause() {
+                this.isRunning = false;
+                clearInterval(this.intervalId);
+                this.startBtn.textContent = 'Resume';
+            }
+
+            reset() {
+                this.isRunning = false;
+                clearInterval(this.intervalId);
+                this.elapsedTime = 0;
+                this.laps = [];
+                this.lastLapTime = 0;
+                this.startBtn.textContent = 'Start';
+                this.lapBtn.style.display = 'none';
+                this.resetBtn.style.display = 'none';
+                this.lapList.innerHTML = '';
+                
+                // Reset previous values to force update
+                Object.keys(this.previousValues).forEach(key => {
+                    this.previousValues[key] = null;
+                });
+                
+                this.updateDisplay();
+            }
+
+            lap() {
+                const lapTime = this.elapsedTime;
+                const lapDiff = lapTime - this.lastLapTime;
+                this.laps.unshift({ time: lapTime, diff: lapDiff });
+                this.lastLapTime = lapTime;
+                this.renderLaps();
+            }
+
+            tick() {
+                this.elapsedTime = Date.now() - this.startTime;
+                this.updateDisplay();
+            }
+
+            formatTime(ms) {
+                const totalSeconds = Math.floor(ms / 1000);
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                const centiseconds = Math.floor((ms % 1000) / 10);
+                
+                return {
+                    minutes: String(minutes).padStart(2, '0'),
+                    seconds: String(seconds).padStart(2, '0'),
+                    ms: String(centiseconds).padStart(2, '0')
+                };
+            }
+
+            updateDisplay() {
+                const time = this.formatTime(this.elapsedTime);
+
+                this.updateCard('minutesTens', time.minutes[0]);
+                this.updateCard('minutesOnes', time.minutes[1]);
+                this.updateCard('secondsTens', time.seconds[0]);
+                this.updateCard('secondsOnes', time.seconds[1]);
+                this.updateCard('msTens', time.ms[0]);
+                this.updateCard('msOnes', time.ms[1]);
+            }
+
+            updateCard(cardName, newValue) {
+                const card = this.cards[cardName];
+                const prevValue = this.previousValues[cardName];
+
+                if (prevValue === newValue) return;
+
+                if (prevValue !== null) {
+                    this.flipCard(card, prevValue, newValue);
+                } else {
+                    this.setCardValue(card, newValue);
+                }
+
+                this.previousValues[cardName] = newValue;
+            }
+
+            setCardValue(card, value) {
+                const topSpan = card.querySelector('.card-face-top span');
+                const bottomSpan = card.querySelector('.card-face-bottom span');
+                topSpan.textContent = value;
+                bottomSpan.textContent = value;
+            }
+
+            flipCard(card, oldValue, newValue) {
+                const existingFlipTop = card.querySelector('.flip-top');
+                const existingFlipBottom = card.querySelector('.flip-bottom');
+                if (existingFlipTop) existingFlipTop.remove();
+                if (existingFlipBottom) existingFlipBottom.remove();
+
+                const flipTop = document.createElement('div');
+                flipTop.className = 'flip-top';
+                flipTop.innerHTML = `<span>${oldValue}</span>`;
+
+                const flipBottom = document.createElement('div');
+                flipBottom.className = 'flip-bottom';
+                flipBottom.innerHTML = `<span>${newValue}</span>`;
+
+                const topSpan = card.querySelector('.card-face-top span');
+                const bottomSpan = card.querySelector('.card-face-bottom span');
+                
+                topSpan.textContent = newValue;
+                bottomSpan.textContent = oldValue;
+
+                card.appendChild(flipTop);
+                card.appendChild(flipBottom);
+                card.classList.add('flipping');
+
+                setTimeout(() => {
+                    bottomSpan.textContent = newValue;
+                }, 300);
+
+                setTimeout(() => {
+                    card.classList.remove('flipping');
+                    flipTop.remove();
+                    flipBottom.remove();
+                }, 600);
+            }
+
+            renderLaps() {
+                this.lapList.innerHTML = this.laps.map((lap, index) => {
+                    const lapNum = this.laps.length - index;
+                    const time = this.formatTime(lap.time);
+                    const diff = this.formatTime(lap.diff);
+                    return `
+                        <div class="lap-item">
+                            <span class="lap-number">Lap ${lapNum}</span>
+                            <span class="lap-time">${time.minutes}:${time.seconds}.${time.ms}</span>
+                            <span class="lap-diff">+${diff.minutes}:${diff.seconds}.${diff.ms}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('SW registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('SW registration failed:', error);
+                    });
+            });
+        }
+
+        // Initialize stopwatch
+        new FlipStopwatch();
+    </script>
+</body>
+</html>
