@@ -49,7 +49,7 @@
         }
 
         :root {
-            --flip-duration: 0.6s;
+            --flip-duration: 0.5s;
             --card-depth: 8px;
             --ambient-glow: rgba(240, 198, 116, 0.03);
         }
@@ -133,6 +133,7 @@
                 0 var(--card-depth) 0 0 #0f0f14,
                 0 calc(var(--card-depth) + 4px) 20px rgba(0, 0, 0, 0.5),
                 inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+            transform-style: preserve-3d;
         }
 
         .flip-card-inner {
@@ -212,6 +213,10 @@
             height: 50%;
             overflow: hidden;
             backface-visibility: hidden;
+            transform-style: preserve-3d;
+            will-change: transform;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         .flip-card .flip-top {
@@ -219,16 +224,17 @@
             transform-origin: bottom;
             border-radius: 12px 12px 0 0;
             background: linear-gradient(180deg, #252532 0%, #1f1f2a 100%);
-            z-index: 10;
+            z-index: 20;
+            transform: translate3d(0, 0, 0);
         }
 
         .flip-card .flip-bottom {
             bottom: 0;
             transform-origin: top;
-            transform: rotateX(90deg);
+            transform: translate3d(0, 0, 0) rotateX(90deg);
             border-radius: 0 0 12px 12px;
             background: linear-gradient(180deg, #1a1a24 0%, #16161e 100%);
-            z-index: 10;
+            z-index: 5;
         }
 
         .flip-card .flip-top span,
@@ -253,29 +259,31 @@
         }
 
         .flip-card.flipping .flip-top {
-            animation: flipTop var(--flip-duration) ease-in forwards;
+            animation: flipTop var(--flip-duration) cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+            z-index: 30;
         }
 
         .flip-card.flipping .flip-bottom {
-            animation: flipBottom var(--flip-duration) ease-out forwards;
+            animation: flipBottom var(--flip-duration) cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
             animation-delay: calc(var(--flip-duration) / 2);
+            z-index: 25;
         }
 
         @keyframes flipTop {
             0% {
-                transform: rotateX(0deg);
+                transform: translate3d(0, 0, 0) rotateX(0deg);
             }
             100% {
-                transform: rotateX(-90deg);
+                transform: translate3d(0, 0, 0) rotateX(-90deg);
             }
         }
 
         @keyframes flipBottom {
             0% {
-                transform: rotateX(90deg);
+                transform: translate3d(0, 0, 0) rotateX(90deg);
             }
             100% {
-                transform: rotateX(0deg);
+                transform: translate3d(0, 0, 0) rotateX(0deg);
             }
         }
 
@@ -675,14 +683,14 @@
                 // Update bottom to new value after animation
                 setTimeout(() => {
                     bottomSpan.textContent = newValue;
-                }, 300);
+                }, 250);
 
                 // Cleanup
                 setTimeout(() => {
                     card.classList.remove('flipping');
                     flipTop.remove();
                     flipBottom.remove();
-                }, 600);
+                }, 500);
             }
 
             updateDate(date) {
