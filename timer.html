@@ -872,8 +872,8 @@
 
                 const topSpan = card.querySelector('.card-face-top span');
                 const bottomSpan = card.querySelector('.card-face-bottom span');
-                topSpan.textContent = value;
-                bottomSpan.textContent = value;
+                if (topSpan) topSpan.textContent = value;
+                if (bottomSpan) bottomSpan.textContent = value;
             }
 
             flipCard(card, oldValue, newValue) {
