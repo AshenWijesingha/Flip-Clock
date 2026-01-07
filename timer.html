@@ -857,17 +857,37 @@
             }
 
             setCardValue(card, value) {
-                const topSpan = card.querySelector('.card-face-top span');
-                const bottomSpan = card.querySelector('.card-face-bottom span');
-                topSpan.textContent = value;
-                bottomSpan.textContent = value;
-            }
+                // Cancel any pending animations for this card
+                if (card._flipTimeouts) {
+                    card._flipTimeouts.forEach(id => clearTimeout(id));
+                    card._flipTimeouts = [];
+                }
 
-            flipCard(card, oldValue, newValue) {
+                // Remove any existing flip elements and animation state
                 const existingFlipTop = card.querySelector('.flip-top');
                 const existingFlipBottom = card.querySelector('.flip-bottom');
                 if (existingFlipTop) existingFlipTop.remove();
                 if (existingFlipBottom) existingFlipBottom.remove();
+                card.classList.remove('flipping');
+
+                const topSpan = card.querySelector('.card-face-top span');
+                const bottomSpan = card.querySelector('.card-face-bottom span');
+                if (topSpan) topSpan.textContent = value;
+                if (bottomSpan) bottomSpan.textContent = value;
+            }
+
+            flipCard(card, oldValue, newValue) {
+                // Cancel any pending animations for this card
+                if (card._flipTimeouts) {
+                    card._flipTimeouts.forEach(id => clearTimeout(id));
+                }
+                card._flipTimeouts = [];
+
+                const existingFlipTop = card.querySelector('.flip-top');
+                const existingFlipBottom = card.querySelector('.flip-bottom');
+                if (existingFlipTop) existingFlipTop.remove();
+                if (existingFlipBottom) existingFlipBottom.remove();
+                card.classList.remove('flipping');
 
                 const flipTop = document.createElement('div');
                 flipTop.className = 'flip-top';
@@ -887,15 +907,18 @@
                 card.appendChild(flipBottom);
                 card.classList.add('flipping');
 
-                setTimeout(() => {
+                const timeout1 = setTimeout(() => {
                     bottomSpan.textContent = newValue;
                 }, 250);
 
-                setTimeout(() => {
+                const timeout2 = setTimeout(() => {
                     card.classList.remove('flipping');
                     flipTop.remove();
                     flipBottom.remove();
+                    card._flipTimeouts = [];
                 }, 500);
+
+                card._flipTimeouts.push(timeout1, timeout2);
             }
         }
 

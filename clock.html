@@ -645,18 +645,38 @@
             }
 
             setCardValue(card, value) {
+                // Cancel any pending animations for this card
+                if (card._flipTimeouts) {
+                    card._flipTimeouts.forEach(id => clearTimeout(id));
+                    card._flipTimeouts = [];
+                }
+
+                // Remove any existing flip elements and animation state
+                const existingFlipTop = card.querySelector('.flip-top');
+                const existingFlipBottom = card.querySelector('.flip-bottom');
+                if (existingFlipTop) existingFlipTop.remove();
+                if (existingFlipBottom) existingFlipBottom.remove();
+                card.classList.remove('flipping');
+
                 const topSpan = card.querySelector('.card-face-top span');
                 const bottomSpan = card.querySelector('.card-face-bottom span');
-                topSpan.textContent = value;
-                bottomSpan.textContent = value;
+                if (topSpan) topSpan.textContent = value;
+                if (bottomSpan) bottomSpan.textContent = value;
             }
 
             flipCard(card, oldValue, newValue) {
+                // Cancel any pending animations for this card
+                if (card._flipTimeouts) {
+                    card._flipTimeouts.forEach(id => clearTimeout(id));
+                }
+                card._flipTimeouts = [];
+
                 // Remove any existing flip elements
                 const existingFlipTop = card.querySelector('.flip-top');
                 const existingFlipBottom = card.querySelector('.flip-bottom');
                 if (existingFlipTop) existingFlipTop.remove();
                 if (existingFlipBottom) existingFlipBottom.remove();
+                card.classList.remove('flipping');
 
                 // Create flip elements
                 const flipTop = document.createElement('div');
@@ -681,16 +701,19 @@
                 card.classList.add('flipping');
 
                 // Update bottom to new value after animation
-                setTimeout(() => {
+                const timeout1 = setTimeout(() => {
                     bottomSpan.textContent = newValue;
                 }, 250);
 
                 // Cleanup
-                setTimeout(() => {
+                const timeout2 = setTimeout(() => {
                     card.classList.remove('flipping');
                     flipTop.remove();
                     flipBottom.remove();
+                    card._flipTimeouts = [];
                 }, 500);
+
+                card._flipTimeouts.push(timeout1, timeout2);
             }
 
             updateDate(date) {
