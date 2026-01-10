@@ -386,6 +386,41 @@
             color: #f0c674;
         }
 
+        /* Sound toggle button */
+        .sound-toggle {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: rgba(240, 198, 116, 0.7);
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(240, 198, 116, 0.1);
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            z-index: 100;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .sound-toggle:hover {
+            background: rgba(240, 198, 116, 0.1);
+            color: #f0c674;
+        }
+
+        .sound-toggle.active {
+            border-color: rgba(240, 198, 116, 0.3);
+            color: #f0c674;
+        }
+
+        .sound-toggle .sound-icon {
+            font-size: 1rem;
+        }
+
         /* Install prompt */
         .install-prompt {
             position: fixed;
@@ -503,6 +538,13 @@
                 font-size: 0.75rem;
                 padding: 0.4rem 0.8rem;
             }
+
+            .sound-toggle {
+                top: 1rem;
+                right: 1rem;
+                font-size: 0.75rem;
+                padding: 0.4rem 0.8rem;
+            }
         }
 
         /* Landscape phone optimization */
@@ -532,6 +574,10 @@
     <div class="ambient-light"></div>
     
     <a href="index.html" class="back-btn">← Home</a>
+    <button class="sound-toggle" id="sound-toggle" title="Toggle tick sound">
+        <span class="sound-icon">🔇</span>
+        <span class="sound-text">Sound</span>
+    </button>
     
     <div class="clock-container">
         <div class="flip-clock">
@@ -609,9 +655,88 @@
     <div class="fullscreen-hint" id="fullscreen-hint">Press F11 for fullscreen</div>
 
     <script>
+        // Clock Tick Sound Manager
+        class ClockSoundManager {
+            constructor() {
+                this.audioContext = null;
+                this.isEnabled = this.loadSoundPreference();
+                this.soundToggle = document.getElementById('sound-toggle');
+                this.init();
+            }
+
+            init() {
+                this.updateToggleUI();
+                this.soundToggle.addEventListener('click', () => this.toggle());
+            }
+
+            loadSoundPreference() {
+                return localStorage.getItem('clockSoundEnabled') === 'true';
+            }
+
+            saveSoundPreference() {
+                localStorage.setItem('clockSoundEnabled', this.isEnabled.toString());
+            }
+
+            toggle() {
+                this.isEnabled = !this.isEnabled;
+                this.saveSoundPreference();
+                this.updateToggleUI();
+                
+                // Play a tick sound immediately when enabling to give feedback
+                if (this.isEnabled) {
+                    this.playTick();
+                }
+            }
+
+            updateToggleUI() {
+                const icon = this.soundToggle.querySelector('.sound-icon');
+                if (this.isEnabled) {
+                    this.soundToggle.classList.add('active');
+                    icon.textContent = '🔊';
+                } else {
+                    this.soundToggle.classList.remove('active');
+                    icon.textContent = '🔇';
+                }
+            }
+
+            playTick() {
+                if (!this.isEnabled) return;
+
+                try {
+                    // Create audio context on demand (required for autoplay policies)
+                    if (!this.audioContext) {
+                        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+
+                    const now = this.audioContext.currentTime;
+                    
+                    // Create a short click/tick sound
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    // Use a higher frequency for a "tick" sound
+                    oscillator.frequency.value = 1800;
+                    oscillator.type = 'sine';
+                    
+                    // Very short envelope for a click sound
+                    gainNode.gain.setValueAtTime(0.15, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.03);
+                    
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.03);
+                } catch (e) {
+                    console.log('Audio not available:', e);
+                }
+            }
+        }
+
         // Flip Clock Logic
         class FlipClock {
-            constructor() {
+            constructor(soundManager) {
+                this.soundManager = soundManager;
                 this.cards = {
                     hoursTens: document.getElementById('hours-tens'),
                     hoursOnes: document.getElementById('hours-ones'),
@@ -686,6 +811,10 @@
                             this.flipCard(card, oldValue, newValue);
                         });
                     });
+                    // Play tick sound when seconds change
+                    if (this.soundManager) {
+                        this.soundManager.playTick();
+                    }
                 }
 
                 this.updateDate(now);
@@ -810,8 +939,9 @@
             });
         }
 
-        // Initialize clock
-        new FlipClock();
+        // Initialize sound manager and clock
+        const soundManager = new ClockSoundManager();
+        new FlipClock(soundManager);
 
         // Prevent screen from sleeping (if supported)
         if ('wakeLock' in navigator) {
