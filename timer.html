@@ -49,9 +49,10 @@
         }
 
         :root {
-            --flip-duration: 0.6s;
+            --flip-duration: 0.5s;
             --card-depth: 8px;
             --ambient-glow: rgba(240, 198, 116, 0.03);
+            --card-gap: 2px;
         }
 
         body {
@@ -127,7 +128,7 @@
             position: relative;
             width: clamp(60px, 15vw, 140px);
             height: clamp(80px, 20vw, 180px);
-            perspective: 1000px;
+            perspective: 1200px;
             border-radius: 12px;
             box-shadow: 
                 0 var(--card-depth) 0 0 #0f0f14,
@@ -158,20 +159,28 @@
             top: 0;
             border-radius: 12px 12px 0 0;
             align-items: flex-end;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.8);
+            border-bottom: var(--card-gap) solid rgba(0, 0, 0, 0.9);
             background: linear-gradient(180deg, #252532 0%, #1f1f2a 100%);
-            box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.4);
+            box-shadow: 
+                inset 0 -2px 3px rgba(0, 0, 0, 0.4),
+                inset 0 1px 1px rgba(255, 255, 255, 0.05);
         }
 
         .card-face-top::after {
             content: '';
             position: absolute;
-            bottom: -1px;
+            bottom: calc(-1 * var(--card-gap));
             left: 0;
             right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(0,0,0,0.6) 20%, rgba(0,0,0,0.6) 80%, transparent);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+            height: var(--card-gap);
+            background: linear-gradient(90deg, 
+                rgba(0,0,0,0.4) 0%, 
+                rgba(0,0,0,0.8) 3%, 
+                rgba(0,0,0,0.8) 97%, 
+                rgba(0,0,0,0.4) 100%);
+            box-shadow: 
+                inset 0 1px 1px rgba(0,0,0,0.6),
+                0 1px 1px rgba(255,255,255,0.03);
         }
 
         .card-face-bottom {
@@ -179,8 +188,10 @@
             border-radius: 0 0 12px 12px;
             align-items: flex-start;
             background: linear-gradient(180deg, #1a1a24 0%, #16161e 100%);
-            border-top: 1px solid rgba(0, 0, 0, 0.8);
-            box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3);
+            border-top: var(--card-gap) solid rgba(0, 0, 0, 0.9);
+            box-shadow: 
+                inset 0 2px 3px rgba(0, 0, 0, 0.3),
+                inset 0 -1px 1px rgba(255, 255, 255, 0.03);
         }
 
         .card-face-bottom::before {
@@ -190,7 +201,7 @@
             left: 0;
             right: 0;
             height: 1px;
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.1);
         }
 
         .card-face span {
@@ -226,9 +237,10 @@
             background: linear-gradient(180deg, #252532 0%, #1f1f2a 100%);
             z-index: 20;
             transform: translate3d(0, 0, 0);
-            border-bottom: 1px solid rgba(0, 0, 0, 0.8);
+            border-bottom: var(--card-gap) solid rgba(0, 0, 0, 0.9);
             box-shadow: 
                 inset 0 -2px 3px rgba(0, 0, 0, 0.4),
+                inset 0 1px 1px rgba(255, 255, 255, 0.05),
                 0 10px 20px rgba(0, 0, 0, 0);
             transition: box-shadow 0.1s ease-out;
         }
@@ -236,12 +248,18 @@
         .flip-card .flip-top::after {
             content: '';
             position: absolute;
-            bottom: -1px;
+            bottom: calc(-1 * var(--card-gap));
             left: 0;
             right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(0,0,0,0.6) 20%, rgba(0,0,0,0.6) 80%, transparent);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+            height: var(--card-gap);
+            background: linear-gradient(90deg, 
+                rgba(0,0,0,0.4) 0%, 
+                rgba(0,0,0,0.8) 3%, 
+                rgba(0,0,0,0.8) 97%, 
+                rgba(0,0,0,0.4) 100%);
+            box-shadow: 
+                inset 0 1px 1px rgba(0,0,0,0.6),
+                0 1px 1px rgba(255,255,255,0.03);
         }
 
         .flip-card .flip-top span {
@@ -263,26 +281,36 @@
             position: absolute;
             inset: 0;
             background: linear-gradient(180deg, 
-                rgba(255, 255, 255, 0.05) 0%, 
-                transparent 20%, 
-                transparent 80%, 
-                rgba(0, 0, 0, 0.2) 100%);
+                rgba(255, 255, 255, 0.08) 0%, 
+                transparent 15%, 
+                transparent 85%, 
+                rgba(0, 0, 0, 0.3) 100%);
             border-radius: 12px 12px 0 0;
             opacity: 0;
             pointer-events: none;
             z-index: 10;
+            transition: opacity 0.1s ease;
         }
 
         .flip-card.flipping .flip-top::before {
-            animation: overlayFlash var(--flip-duration) ease-out forwards;
+            animation: overlayFlash var(--flip-duration) ease-in-out forwards;
         }
 
         @keyframes overlayFlash {
-            0%, 100% {
+            0% {
                 opacity: 0;
             }
+            25% {
+                opacity: 0.7;
+            }
             50% {
-                opacity: 0.6;
+                opacity: 1;
+            }
+            75% {
+                opacity: 0.5;
+            }
+            100% {
+                opacity: 0;
             }
         }
 
@@ -302,8 +330,10 @@
             background: linear-gradient(180deg, #1a1a24 0%, #16161e 100%);
             z-index: 10;
             transform: translate3d(0, 0, 0) rotateX(180deg);
-            border-top: 1px solid rgba(0, 0, 0, 0.8);
-            box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3);
+            border-top: var(--card-gap) solid rgba(0, 0, 0, 0.9);
+            box-shadow: 
+                inset 0 2px 3px rgba(0, 0, 0, 0.3),
+                inset 0 -1px 1px rgba(255, 255, 255, 0.03);
         }
 
         .flip-card .flip-bottom::before {
@@ -313,7 +343,7 @@
             left: 0;
             right: 0;
             height: 1px;
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.1);
         }
 
         .flip-card .flip-bottom span {
@@ -331,12 +361,12 @@
         }
 
         .flip-card.flipping .flip-top {
-            animation: flipTop var(--flip-duration) cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
+            animation: flipTop var(--flip-duration) cubic-bezier(0.55, 0.085, 0.68, 0.53) forwards;
             z-index: 30;
         }
 
         .flip-card.flipping .flip-bottom {
-            animation: flipBottom var(--flip-duration) cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
+            animation: flipBottom var(--flip-duration) cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
             z-index: 25;
         }
 
@@ -345,18 +375,28 @@
                 transform: translate3d(0, 0, 0) rotateX(0deg);
                 box-shadow: 
                     inset 0 -2px 3px rgba(0, 0, 0, 0.4),
+                    inset 0 1px 1px rgba(255, 255, 255, 0.05),
                     0 10px 20px rgba(0, 0, 0, 0);
             }
-            50% {
-                transform: translate3d(0, 0, 0) rotateX(-90deg);
+            40% {
+                transform: translate3d(0, 0, 0) rotateX(-85deg);
                 box-shadow: 
                     inset 0 -2px 3px rgba(0, 0, 0, 0.4),
-                    0 15px 30px rgba(0, 0, 0, 0.4);
+                    inset 0 1px 1px rgba(255, 255, 255, 0.05),
+                    0 20px 40px rgba(0, 0, 0, 0.5);
+            }
+            60% {
+                transform: translate3d(0, 0, 0) rotateX(-95deg);
+                box-shadow: 
+                    inset 0 -2px 3px rgba(0, 0, 0, 0.4),
+                    inset 0 1px 1px rgba(255, 255, 255, 0.05),
+                    0 22px 45px rgba(0, 0, 0, 0.6);
             }
             100% {
                 transform: translate3d(0, 0, 0) rotateX(-180deg);
                 box-shadow: 
                     inset 0 -2px 3px rgba(0, 0, 0, 0.4),
+                    inset 0 1px 1px rgba(255, 255, 255, 0.05),
                     0 10px 20px rgba(0, 0, 0, 0.2);
             }
         }
@@ -364,17 +404,29 @@
         @keyframes flipBottom {
             0% {
                 transform: translate3d(0, 0, 0) rotateX(180deg);
-                box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3);
-            }
-            50% {
-                transform: translate3d(0, 0, 0) rotateX(90deg);
                 box-shadow: 
                     inset 0 2px 3px rgba(0, 0, 0, 0.3),
-                    0 5px 15px rgba(0, 0, 0, 0.3);
+                    inset 0 -1px 1px rgba(255, 255, 255, 0.03);
+            }
+            40% {
+                transform: translate3d(0, 0, 0) rotateX(95deg);
+                box-shadow: 
+                    inset 0 2px 3px rgba(0, 0, 0, 0.3),
+                    inset 0 -1px 1px rgba(255, 255, 255, 0.03),
+                    0 8px 20px rgba(0, 0, 0, 0.4);
+            }
+            60% {
+                transform: translate3d(0, 0, 0) rotateX(85deg);
+                box-shadow: 
+                    inset 0 2px 3px rgba(0, 0, 0, 0.3),
+                    inset 0 -1px 1px rgba(255, 255, 255, 0.03),
+                    0 10px 25px rgba(0, 0, 0, 0.5);
             }
             100% {
                 transform: translate3d(0, 0, 0) rotateX(0deg);
-                box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3);
+                box-shadow: 
+                    inset 0 2px 3px rgba(0, 0, 0, 0.3),
+                    inset 0 -1px 1px rgba(255, 255, 255, 0.03);
             }
         }
 
@@ -1004,7 +1056,7 @@
                     flipTop.remove();
                     flipBottom.remove();
                     card._flipTimeouts = [];
-                }, 600);
+                }, 500);
 
                 card._flipTimeouts.push(timeout);
             }
