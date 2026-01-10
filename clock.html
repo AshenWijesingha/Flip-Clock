@@ -635,7 +635,16 @@
 
             init() {
                 this.updateClock();
-                setInterval(() => this.updateClock(), 1000);
+                this.scheduleNextUpdate();
+            }
+
+            scheduleNextUpdate() {
+                const now = new Date();
+                const msUntilNextSecond = 1000 - now.getMilliseconds();
+                setTimeout(() => {
+                    this.updateClock();
+                    this.scheduleNextUpdate();
+                }, msUntilNextSecond);
             }
 
             updateClock() {
@@ -644,30 +653,42 @@
                 const minutes = String(now.getMinutes()).padStart(2, '0');
                 const seconds = String(now.getSeconds()).padStart(2, '0');
 
-                this.updateCard('hoursTens', hours[0]);
-                this.updateCard('hoursOnes', hours[1]);
-                this.updateCard('minutesTens', minutes[0]);
-                this.updateCard('minutesOnes', minutes[1]);
-                this.updateCard('secondsTens', seconds[0]);
-                this.updateCard('secondsOnes', seconds[1]);
+                // Collect all cards that need to flip
+                const cardsToFlip = [];
+                
+                const cardUpdates = [
+                    { name: 'hoursTens', value: hours[0] },
+                    { name: 'hoursOnes', value: hours[1] },
+                    { name: 'minutesTens', value: minutes[0] },
+                    { name: 'minutesOnes', value: minutes[1] },
+                    { name: 'secondsTens', value: seconds[0] },
+                    { name: 'secondsOnes', value: seconds[1] },
+                ];
 
-                this.updateDate(now);
-            }
+                cardUpdates.forEach(({ name, value }) => {
+                    const card = this.cards[name];
+                    const prevValue = this.previousValues[name];
+                    
+                    if (prevValue !== value) {
+                        if (prevValue !== null) {
+                            cardsToFlip.push({ card, oldValue: prevValue, newValue: value });
+                        } else {
+                            this.setCardValue(card, value);
+                        }
+                        this.previousValues[name] = value;
+                    }
+                });
 
-            updateCard(cardName, newValue) {
-                const card = this.cards[cardName];
-                const prevValue = this.previousValues[cardName];
-
-                if (prevValue === newValue) return;
-
-                if (prevValue !== null) {
-                    this.flipCard(card, prevValue, newValue);
-                } else {
-                    // Initial set without animation
-                    this.setCardValue(card, newValue);
+                // Flip all cards simultaneously using requestAnimationFrame
+                if (cardsToFlip.length > 0) {
+                    requestAnimationFrame(() => {
+                        cardsToFlip.forEach(({ card, oldValue, newValue }) => {
+                            this.flipCard(card, oldValue, newValue);
+                        });
+                    });
                 }
 
-                this.previousValues[cardName] = newValue;
+                this.updateDate(now);
             }
 
             setCardValue(card, value) {

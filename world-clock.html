@@ -944,61 +944,85 @@
             }
 
             startUpdateLoop() {
-                setInterval(() => this.updateAllClocks(), 1000);
+                this.scheduleNextUpdate();
+            }
+
+            scheduleNextUpdate() {
+                const now = new Date();
+                const msUntilNextSecond = 1000 - now.getMilliseconds();
+                setTimeout(() => {
+                    this.updateAllClocks();
+                    this.scheduleNextUpdate();
+                }, msUntilNextSecond);
             }
 
             updateAllClocks() {
+                const now = new Date();
+                
+                // Collect all cards to flip across all timezones
+                const allCardsToFlip = [];
+                
                 this.selectedTimezones.forEach(timezone => {
-                    const card = this.clocksContainer.querySelector(`[data-timezone="${timezone}"]`);
-                    if (!card) return;
+                    const clockCard = this.clocksContainer.querySelector(`[data-timezone="${timezone}"]`);
+                    if (!clockCard) return;
 
-                    const now = new Date();
                     const options = { timeZone: timezone, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
                     const timeStr = now.toLocaleTimeString('en-US', options);
                     const [hours, minutes, seconds] = timeStr.split(':');
 
-                    this.updateCard(card, timezone, 'hours-tens', hours[0]);
-                    this.updateCard(card, timezone, 'hours-ones', hours[1]);
-                    this.updateCard(card, timezone, 'minutes-tens', minutes[0]);
-                    this.updateCard(card, timezone, 'minutes-ones', minutes[1]);
-                    this.updateCard(card, timezone, 'seconds-tens', seconds[0]);
-                    this.updateCard(card, timezone, 'seconds-ones', seconds[1]);
+                    const instance = this.clockInstances[timezone];
+                    if (!instance) return;
+
+                    const keyMap = {
+                        'hours-tens': 'hoursTens',
+                        'hours-ones': 'hoursOnes',
+                        'minutes-tens': 'minutesTens',
+                        'minutes-ones': 'minutesOnes',
+                        'seconds-tens': 'secondsTens',
+                        'seconds-ones': 'secondsOnes',
+                    };
+
+                    const cardUpdates = [
+                        { cardName: 'hours-tens', value: hours[0] },
+                        { cardName: 'hours-ones', value: hours[1] },
+                        { cardName: 'minutes-tens', value: minutes[0] },
+                        { cardName: 'minutes-ones', value: minutes[1] },
+                        { cardName: 'seconds-tens', value: seconds[0] },
+                        { cardName: 'seconds-ones', value: seconds[1] },
+                    ];
+
+                    cardUpdates.forEach(({ cardName, value }) => {
+                        const card = clockCard.querySelector(`[data-card="${cardName}"]`);
+                        if (!card) return;
+
+                        const key = keyMap[cardName];
+                        const prevValue = instance.previousValues[key];
+
+                        if (prevValue !== value) {
+                            if (prevValue !== null) {
+                                allCardsToFlip.push({ card, oldValue: prevValue, newValue: value });
+                            } else {
+                                this.setCardValue(card, value);
+                            }
+                            instance.previousValues[key] = value;
+                        }
+                    });
 
                     // Update date
                     const dateOptions = { timeZone: timezone, weekday: 'short', month: 'short', day: 'numeric' };
                     const dateStr = now.toLocaleDateString('en-US', dateOptions);
-                    const dateEl = card.querySelector('[data-date]');
+                    const dateEl = clockCard.querySelector('[data-date]');
                     if (dateEl) dateEl.textContent = dateStr;
                 });
-            }
 
-            updateCard(clockCard, timezone, cardName, newValue) {
-                const card = clockCard.querySelector(`[data-card="${cardName}"]`);
-                if (!card) return;
-
-                const instance = this.clockInstances[timezone];
-                if (!instance) return;
-
-                const keyMap = {
-                    'hours-tens': 'hoursTens',
-                    'hours-ones': 'hoursOnes',
-                    'minutes-tens': 'minutesTens',
-                    'minutes-ones': 'minutesOnes',
-                    'seconds-tens': 'secondsTens',
-                    'seconds-ones': 'secondsOnes',
-                };
-                const key = keyMap[cardName];
-                const prevValue = instance.previousValues[key];
-
-                if (prevValue === newValue) return;
-
-                if (prevValue !== null) {
-                    this.flipCard(card, prevValue, newValue);
-                } else {
-                    this.setCardValue(card, newValue);
+                // Flip all cards simultaneously using requestAnimationFrame
+                if (allCardsToFlip.length > 0) {
+                    requestAnimationFrame(() => {
+                        allCardsToFlip.forEach(({ card, oldValue, newValue }) => {
+                            this.flipCard(card, oldValue, newValue);
+                        });
+                    });
                 }
-
-                instance.previousValues[key] = newValue;
             }
 
             setCardValue(card, value) {

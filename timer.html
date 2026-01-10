@@ -777,12 +777,19 @@
                 this.inputSection.style.display = 'none';
                 this.timerDisplay.classList.remove('timer-complete');
                 
-                this.intervalId = setInterval(() => this.tick(), 1000);
+                this.scheduleNextTick();
+            }
+
+            scheduleNextTick() {
+                if (!this.isRunning) return;
+                const now = new Date();
+                const msUntilNextSecond = 1000 - now.getMilliseconds();
+                this.timeoutId = setTimeout(() => this.tick(), msUntilNextSecond);
             }
 
             pause() {
                 this.isRunning = false;
-                clearInterval(this.intervalId);
+                clearTimeout(this.timeoutId);
                 this.startBtn.textContent = 'Resume';
                 this.startBtn.style.display = 'inline-block';
                 this.pauseBtn.style.display = 'none';
@@ -790,7 +797,7 @@
 
             reset() {
                 this.isRunning = false;
-                clearInterval(this.intervalId);
+                clearTimeout(this.timeoutId);
                 this.remainingSeconds = this.totalSeconds;
                 this.startBtn.textContent = 'Start';
                 this.startBtn.style.display = 'inline-block';
@@ -811,6 +818,7 @@
                 if (this.remainingSeconds > 0) {
                     this.remainingSeconds--;
                     this.updateDisplay();
+                    this.scheduleNextTick();
                 } else {
                     this.complete();
                 }
@@ -858,27 +866,40 @@
                 const minutesStr = String(minutes).padStart(2, '0');
                 const secondsStr = String(seconds).padStart(2, '0');
 
-                this.updateCard('hoursTens', hoursStr[0]);
-                this.updateCard('hoursOnes', hoursStr[1]);
-                this.updateCard('minutesTens', minutesStr[0]);
-                this.updateCard('minutesOnes', minutesStr[1]);
-                this.updateCard('secondsTens', secondsStr[0]);
-                this.updateCard('secondsOnes', secondsStr[1]);
-            }
+                // Collect all cards that need to flip
+                const cardsToFlip = [];
+                
+                const cardUpdates = [
+                    { name: 'hoursTens', value: hoursStr[0] },
+                    { name: 'hoursOnes', value: hoursStr[1] },
+                    { name: 'minutesTens', value: minutesStr[0] },
+                    { name: 'minutesOnes', value: minutesStr[1] },
+                    { name: 'secondsTens', value: secondsStr[0] },
+                    { name: 'secondsOnes', value: secondsStr[1] },
+                ];
 
-            updateCard(cardName, newValue) {
-                const card = this.cards[cardName];
-                const prevValue = this.previousValues[cardName];
+                cardUpdates.forEach(({ name, value }) => {
+                    const card = this.cards[name];
+                    const prevValue = this.previousValues[name];
+                    
+                    if (prevValue !== value) {
+                        if (prevValue !== null) {
+                            cardsToFlip.push({ card, oldValue: prevValue, newValue: value });
+                        } else {
+                            this.setCardValue(card, value);
+                        }
+                        this.previousValues[name] = value;
+                    }
+                });
 
-                if (prevValue === newValue) return;
-
-                if (prevValue !== null) {
-                    this.flipCard(card, prevValue, newValue);
-                } else {
-                    this.setCardValue(card, newValue);
+                // Flip all cards simultaneously using requestAnimationFrame
+                if (cardsToFlip.length > 0) {
+                    requestAnimationFrame(() => {
+                        cardsToFlip.forEach(({ card, oldValue, newValue }) => {
+                            this.flipCard(card, oldValue, newValue);
+                        });
+                    });
                 }
-
-                this.previousValues[cardName] = newValue;
             }
 
             setCardValue(card, value) {

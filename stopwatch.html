@@ -732,18 +732,18 @@
                 this.resetBtn.style.display = 'inline-block';
                 
                 this.startTime = Date.now() - this.elapsedTime;
-                this.intervalId = setInterval(() => this.tick(), 10);
+                this.tick();
             }
 
             pause() {
                 this.isRunning = false;
-                clearInterval(this.intervalId);
+                cancelAnimationFrame(this.animationFrameId);
                 this.startBtn.textContent = 'Resume';
             }
 
             reset() {
                 this.isRunning = false;
-                clearInterval(this.intervalId);
+                cancelAnimationFrame(this.animationFrameId);
                 this.elapsedTime = 0;
                 this.laps = [];
                 this.lastLapTime = 0;
@@ -769,8 +769,10 @@
             }
 
             tick() {
+                if (!this.isRunning) return;
                 this.elapsedTime = Date.now() - this.startTime;
                 this.updateDisplay();
+                this.animationFrameId = requestAnimationFrame(() => this.tick());
             }
 
             formatTime(ms) {
@@ -789,27 +791,36 @@
             updateDisplay() {
                 const time = this.formatTime(this.elapsedTime);
 
-                this.updateCard('minutesTens', time.minutes[0]);
-                this.updateCard('minutesOnes', time.minutes[1]);
-                this.updateCard('secondsTens', time.seconds[0]);
-                this.updateCard('secondsOnes', time.seconds[1]);
-                this.updateCard('msTens', time.ms[0]);
-                this.updateCard('msOnes', time.ms[1]);
-            }
+                // Collect all cards that need to flip
+                const cardsToFlip = [];
+                
+                const cardUpdates = [
+                    { name: 'minutesTens', value: time.minutes[0] },
+                    { name: 'minutesOnes', value: time.minutes[1] },
+                    { name: 'secondsTens', value: time.seconds[0] },
+                    { name: 'secondsOnes', value: time.seconds[1] },
+                    { name: 'msTens', value: time.ms[0] },
+                    { name: 'msOnes', value: time.ms[1] },
+                ];
 
-            updateCard(cardName, newValue) {
-                const card = this.cards[cardName];
-                const prevValue = this.previousValues[cardName];
+                cardUpdates.forEach(({ name, value }) => {
+                    const card = this.cards[name];
+                    const prevValue = this.previousValues[name];
+                    
+                    if (prevValue !== value) {
+                        if (prevValue !== null) {
+                            cardsToFlip.push({ card, oldValue: prevValue, newValue: value });
+                        } else {
+                            this.setCardValue(card, value);
+                        }
+                        this.previousValues[name] = value;
+                    }
+                });
 
-                if (prevValue === newValue) return;
-
-                if (prevValue !== null) {
-                    this.flipCard(card, prevValue, newValue);
-                } else {
-                    this.setCardValue(card, newValue);
-                }
-
-                this.previousValues[cardName] = newValue;
+                // Flip all cards simultaneously
+                cardsToFlip.forEach(({ card, oldValue, newValue }) => {
+                    this.flipCard(card, oldValue, newValue);
+                });
             }
 
             setCardValue(card, value) {
