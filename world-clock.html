@@ -414,11 +414,11 @@
         }
 
         .mini-flip-card.flipping .flip-top {
-            animation: flipTop var(--flip-duration) ease-in forwards;
+            animation: flipTop calc(var(--flip-duration) / 2) ease-in forwards;
         }
 
         .mini-flip-card.flipping .flip-bottom {
-            animation: flipBottom var(--flip-duration) ease-out forwards;
+            animation: flipBottom calc(var(--flip-duration) / 2) ease-out forwards;
             animation-delay: calc(var(--flip-duration) / 2);
         }
 
