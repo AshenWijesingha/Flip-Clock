@@ -216,21 +216,11 @@
             height: 50%;
             overflow: hidden;
             backface-visibility: hidden;
-            transform-style: preserve-3d;
-            will-change: transform;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
             top: 0;
             transform-origin: bottom;
             border-radius: 12px 12px 0 0;
             background: linear-gradient(180deg, #252532 0%, #1f1f2a 100%);
-            z-index: 20;
-            transform: translate3d(0, 0, 0);
-            border-bottom: 1px solid rgba(0, 0, 0, 0.8);
-            box-shadow: 
-                inset 0 -2px 3px rgba(0, 0, 0, 0.4),
-                0 10px 20px rgba(0, 0, 0, 0);
-            transition: box-shadow 0.1s ease-out;
+            z-index: 10;
         }
 
         .flip-card .flip-top::after {
@@ -257,51 +247,18 @@
             top: 0;
         }
 
-        /* Add overlay for flip animation realism */
-        .flip-card .flip-top::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(180deg, 
-                rgba(255, 255, 255, 0.05) 0%, 
-                transparent 20%, 
-                transparent 80%, 
-                rgba(0, 0, 0, 0.2) 100%);
-            border-radius: 12px 12px 0 0;
-            opacity: 0;
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        .flip-card.flipping .flip-top::before {
-            animation: overlayFlash var(--flip-duration) ease-out forwards;
-        }
-
-        @keyframes overlayFlash {
-            0%, 100% {
-                opacity: 0;
-            }
-            50% {
-                opacity: 0.6;
-            }
-        }
-
         .flip-card .flip-bottom {
             position: absolute;
             width: 100%;
             height: 50%;
             overflow: hidden;
             backface-visibility: hidden;
-            transform-style: preserve-3d;
-            will-change: transform;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
             bottom: 0;
             transform-origin: top;
+            transform: rotateX(90deg);
             border-radius: 0 0 12px 12px;
             background: linear-gradient(180deg, #1a1a24 0%, #16161e 100%);
             z-index: 10;
-            transform: translate3d(0, 0, 0) rotateX(180deg);
             border-top: 1px solid rgba(0, 0, 0, 0.8);
             box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3);
         }
@@ -327,66 +284,32 @@
             color: #e8e8e8;
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
             bottom: 0;
-            transform: rotateX(180deg);
         }
 
         .flip-card.flipping .flip-top {
-            animation: flipTop var(--flip-duration) cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
-            z-index: 30;
+            animation: flipTop var(--flip-duration) ease-in forwards;
         }
 
         .flip-card.flipping .flip-bottom {
-            animation: flipBottom var(--flip-duration) cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
-            z-index: 25;
+            animation: flipBottom var(--flip-duration) ease-out forwards;
+            animation-delay: calc(var(--flip-duration) / 2);
         }
 
         @keyframes flipTop {
             0% {
-                transform: translate3d(0, 0, 0) rotateX(0deg);
-                opacity: 1;
-                box-shadow: 
-                    inset 0 -2px 3px rgba(0, 0, 0, 0.4),
-                    0 10px 20px rgba(0, 0, 0, 0);
-            }
-            50% {
-                transform: translate3d(0, 0, 0) rotateX(-90deg);
-                opacity: 1;
-                box-shadow: 
-                    inset 0 -2px 3px rgba(0, 0, 0, 0.4),
-                    0 15px 30px rgba(0, 0, 0, 0.4);
-            }
-            50.01% {
-                opacity: 0;
+                transform: rotateX(0deg);
             }
             100% {
-                transform: translate3d(0, 0, 0) rotateX(-180deg);
-                opacity: 0;
-                box-shadow: 
-                    inset 0 -2px 3px rgba(0, 0, 0, 0.4),
-                    0 10px 20px rgba(0, 0, 0, 0.2);
+                transform: rotateX(-90deg);
             }
         }
 
         @keyframes flipBottom {
             0% {
-                transform: translate3d(0, 0, 0) rotateX(180deg);
-                opacity: 0;
-                box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3);
-            }
-            49.99% {
-                opacity: 0;
-            }
-            50% {
-                transform: translate3d(0, 0, 0) rotateX(90deg);
-                opacity: 1;
-                box-shadow: 
-                    inset 0 2px 3px rgba(0, 0, 0, 0.3),
-                    0 5px 15px rgba(0, 0, 0, 0.3);
+                transform: rotateX(90deg);
             }
             100% {
-                transform: translate3d(0, 0, 0) rotateX(0deg);
-                opacity: 1;
-                box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.3);
+                transform: rotateX(0deg);
             }
         }
 
@@ -890,66 +813,52 @@
             }
 
             setCardValue(card, value) {
-                // Cancel any pending animations for this card
-                if (card._flipTimeouts) {
-                    card._flipTimeouts.forEach(id => clearTimeout(id));
-                    card._flipTimeouts = [];
-                }
-
-                // Remove any existing flip elements and animation state
-                const existingFlipTop = card.querySelector('.flip-top');
-                const existingFlipBottom = card.querySelector('.flip-bottom');
-                if (existingFlipTop) existingFlipTop.remove();
-                if (existingFlipBottom) existingFlipBottom.remove();
-                card.classList.remove('flipping');
-
                 const topSpan = card.querySelector('.card-face-top span');
                 const bottomSpan = card.querySelector('.card-face-bottom span');
-                if (topSpan) topSpan.textContent = value;
-                if (bottomSpan) bottomSpan.textContent = value;
+                topSpan.textContent = value;
+                bottomSpan.textContent = value;
             }
 
             flipCard(card, oldValue, newValue) {
-                // Cancel any pending animations for this card
-                if (card._flipTimeouts) {
-                    card._flipTimeouts.forEach(id => clearTimeout(id));
-                }
-                card._flipTimeouts = [];
-
+                // Remove any existing flip elements
                 const existingFlipTop = card.querySelector('.flip-top');
                 const existingFlipBottom = card.querySelector('.flip-bottom');
                 if (existingFlipTop) existingFlipTop.remove();
                 if (existingFlipBottom) existingFlipBottom.remove();
-                card.classList.remove('flipping');
 
-                // Create flip-top element (shows old value, flips down)
+                // Create flip elements
                 const flipTop = document.createElement('div');
                 flipTop.className = 'flip-top';
                 flipTop.innerHTML = `<span>${oldValue}</span>`;
 
-                // Create flip-bottom element (shows new value, flips up)
                 const flipBottom = document.createElement('div');
                 flipBottom.className = 'flip-bottom';
                 flipBottom.innerHTML = `<span>${newValue}</span>`;
 
+                // Update static cards
                 const topSpan = card.querySelector('.card-face-top span');
                 const bottomSpan = card.querySelector('.card-face-bottom span');
                 
+                // Top shows new value (revealed after flip)
                 topSpan.textContent = newValue;
-                bottomSpan.textContent = newValue;
+                // Bottom shows old value initially
+                bottomSpan.textContent = oldValue;
 
                 card.appendChild(flipTop);
                 card.appendChild(flipBottom);
                 card.classList.add('flipping');
 
-                const timeout = setTimeout(() => {
+                // Update bottom to new value after animation
+                setTimeout(() => {
+                    bottomSpan.textContent = newValue;
+                }, 300);
+
+                // Cleanup
+                setTimeout(() => {
                     card.classList.remove('flipping');
                     flipTop.remove();
                     flipBottom.remove();
-                    card._flipTimeouts = [];
                 }, 600);
-
-                card._flipTimeouts.push(timeout);
             }
 
             renderLaps() {
