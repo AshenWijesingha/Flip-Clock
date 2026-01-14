@@ -827,6 +827,7 @@
                 this.startTime = null;
                 this.laps = [];
                 this.lastLapTime = 0;
+                this.pendingTimeouts = [];
                 
                 this.init();
             }
@@ -876,6 +877,20 @@
                 this.lapBtn.style.display = 'none';
                 this.resetBtn.style.display = 'none';
                 this.lapList.innerHTML = '';
+                
+                // Clear all pending timeouts from flip animations
+                this.pendingTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+                this.pendingTimeouts = [];
+                
+                // Clean up any flip animation elements from all cards
+                Object.keys(this.cards).forEach(key => {
+                    const card = this.cards[key];
+                    card.classList.remove('flipping');
+                    const flipTop = card.querySelector('.flip-top');
+                    const flipBottom = card.querySelector('.flip-bottom');
+                    if (flipTop) flipTop.remove();
+                    if (flipBottom) flipBottom.remove();
+                });
                 
                 // Reset previous values to force update
                 Object.keys(this.previousValues).forEach(key => {
@@ -995,16 +1010,18 @@
                 card.classList.add('flipping');
 
                 // Update bottom to new value after animation
-                setTimeout(() => {
+                const timeout1 = setTimeout(() => {
                     bottomSpan.textContent = newValue;
                 }, 300);
+                this.pendingTimeouts.push(timeout1);
 
                 // Cleanup
-                setTimeout(() => {
+                const timeout2 = setTimeout(() => {
                     card.classList.remove('flipping');
                     flipTop.remove();
                     flipBottom.remove();
                 }, 600);
+                this.pendingTimeouts.push(timeout2);
             }
 
             renderLaps() {
